@@ -138,7 +138,7 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 - [ ] `shaders.h`: se genera con `port/tools/undefined.py` (líneas 121 a 150) desde `port/src/gs/shaders/`.
       No es un archivo fuente.
 - [ ] Unificar en la taxonomía la categoría de netplay (Revertir / Desactivar).
-- [ ] Reemplazar los 11 veredictos "Revisar caso por caso" por veredictos de la taxonomía, con evidencia.
+- [x] Reemplazar los 11 veredictos "Revisar caso por caso" por veredictos de la taxonomía, con evidencia.
 - [ ] Quitar `TODO(verificar-abi)` de `hud_a.c:439`. No aplica a ese bloque.
 
 ## Documentos
@@ -387,3 +387,30 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     (11 "Revisar caso por caso", `endian.md` SWAP64/máscaras, esqueleto
     `endian-schema.md`, `static_assert` de layouts, división de
     `xbox360-todo.md` por subsistemas).
+
+- **Sesión 8, 2026-10-11, opencode-go/kimi-k3**:
+  - Resolución de los 11 "Revisar caso por caso" en `xbox360-todo.md` (regla 15).
+    Cada bloque se leyó en su archivo fuente para entender qué hace antes de
+    asignar el veredicto de la taxonomía de AGENTS.md.
+  - Distribución de los 11 veredictos:
+    - 4 "Reutilizar versión PORT (idéntica)": `battle_load.c:547`
+      (`Port_GameBigAlloc`), `eft_det_a.c:91` (macro `(fn, 0)` para void/s32),
+      `eft_det_a.c:136` (normalización s64→s32), `eft_i.c:49` (bit field u64).
+    - 1 "Reutilizar versión PORT (con adaptación)": `hud_a.c:439` (opción Square
+      reutilizable; eliminar sub-condición de netplay).
+    - 2 "Desactivar": `btl_cam.c:512` y `:531` (netplay online, consistente
+      con la decisión de la sesión 5 de desactivar netplay en el port base).
+    - 4 "Opcional": `battle_load.c:578` (stage de split-screen para mods
+      externos, depende de fase 8), `:1518` `:1528` `:1544` (test harness del
+      PC con variables `BT3_TEST_*`; no aplica en consola).
+  - Verificación: `git grep -c "Revisar caso por caso" -- docs/port/xbox360-todo.md`
+    devuelve 0. La única ocurrencia restante en el repo está en
+    `docs/port/xbox360-status.md:11` como parte del criterio de salida de la
+    fase 0 ("0 veredictos 'Revisar caso por caso'") — ahora cumplido.
+  - Commit: `c19e771` "fase 0: resolver los 11 'Revisar caso por caso' (regla 15)"
+    (1 archivo, 11 inserciones, 11 borrados).
+  - Cierre del pendiente "Reemplazar los 11 veredictos 'Revisar caso por caso'"
+    en "Correcciones de contenido".
+  - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
+    (`endian.md` SWAP64/máscaras, esqueleto `endian-schema.md`,
+    `static_assert` de layouts, división de `xbox360-todo.md` por subsistemas).
