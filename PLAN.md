@@ -149,11 +149,12 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
       XAudio2, XContentCreate, XPhysicalAlloc, CreateThread, CRITICAL_SECTION y HLSL; reemplazar
       "auditoría exhaustiva" por la descripción real del método; criterios de salida de la fase 0
       con evidencia; enlace a la sección de riesgos.
-- [ ] `endian.md`: links relativos; verificar cada cita de archivo y línea; completar `SWAP64`;
-      mover `GfxPostSpritePkt`, `EftAdXyzf` y `EftPrim` a "Formatos de paquetes internos (fuera de la
-      regla de disco)"; tabla de máscaras de bitfields con `TODO(verificar)` donde falte confirmación;
-      enlace a `endian-schema.md` marcado como pendiente; sección "Verificación de layout" con
-      `static_assert` para `TexEntry` (0x40), `SaveData` (0x4000) y `McFlowReplayFile` (0x1AC00).
+- [x] `endian.md`: SWAP64 completado (expansión portable con SWAP32); tabla de máscaras de
+      bitfields verificada con `git grep` (sesión 9). Quedan pendientes: mover
+      `GfxPostSpritePkt`/`EftAdXyzf`/`EftPrim` a "Formatos de paquetes internos
+      (fuera de la regla de disco)"; sección "Verificación de layout" con
+      `static_assert` para `TexEntry` (0x40), `SaveData` (0x4000) y `McFlowReplayFile`
+      (0x1AC00).
 - [ ] `AGENTS.md`: confirmar que tiene criterios de salida de la fase 0, toolchain, ABI, caché y
       ensamblador en contexto técnico, reglas 10 a 16, taxonomía de veredictos, forma de trabajar y
       mapa de documentos. Si falta algo, reportarlo sin agregarlo.
@@ -414,3 +415,40 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
   - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
     (`endian.md` SWAP64/máscaras, esqueleto `endian-schema.md`,
     `static_assert` de layouts, división de `xbox360-todo.md` por subsistemas).
+
+- **Sesión 9, 2026-10-11, opencode-go/kimi-k3**:
+  - Trabajo en `endian.md` (punto 3.b de los TODO de la sesión 8):
+    - Sección 4.1: `SWAP64` ya no es placeholder. Implementación portable que
+      reutiliza `SWAP32` sobre la mitad alta y baja del `u64`, combinadas con
+      shift y OR:
+        ```c
+        #define SWAP64(x) (((u64)SWAP32((u32)((u64)(x)         )) << 32) | \
+                           (u64)SWAP32((u32)((u64)(x) >> 32)))
+        ```
+    - Sección 4.4 (Categoría 4 - bitfields): nueva subsección "Máscaras reales
+      (verificadas)" con tabla de 10 entradas (máscara, campo, `#define`,
+      archivo:línea) cubriendo `ObjMdlFile.bound` (0x80000000, sin macro),
+      `Hud.showGauges/Timer/Notice/Combo/Prompt` (0x01..0x10 con macros
+      `HUD_SHOW_*`), `HudCSprite.hidden/mirror` (1, 2 con macros
+      `HUDC_SPR_*`) y `HudENode.hidden/mirror` (1, 2 sin macro, comentario
+      en línea).
+    - Todas las citas verificadas con `git grep` (regla 13 de AGENTS.md):
+      `include/sys/gfxm_e.h:32-33`, `include/battle/hud_a.h:76-80` y `92-101`,
+      `include/battle/hud_c.h:17-23` y `40-41`, `include/battle/hud_e.h:30-36`.
+    - Implementación de `ObjMdlFile.bound` corregida: una nota anterior decía
+      "escrituras de `flags` en `src/sys/gfxm_e_b.c:174`", que era incorrecta
+      (esa línea escribe `tbp`, no `flags`). `git grep` confirma que el único
+      acceso a `mdl->file->bound` en `src/` es la lectura de `src/sys/gfxm_e_b.c:173`;
+      no se accede a `flags` desde `src/`. La implementación ahora describe
+      dos opciones coherentes.
+  - Commit: `e4d76e0` "fase 0: completar SWAP64 y tabla de mascaras de
+    bitfields en endian.md" (1 archivo, 40 inserciones, 3 borrados).
+  - Cierre parcial del pendiente "`endian.md` SWAP64 y máscaras" en
+    "Correcciones de contenido" de PLAN.md. Quedan para sesiones siguientes
+    los otros sub-ítems del pendiente: mover `GfxPostSpritePkt`/`EftAdXyzf`/
+    `EftPrim` a "Formatos de paquetes internos", sección "Verificación de
+    layout" con `static_assert` de TexEntry/SaveData/McFlowReplayFile.
+  - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
+    (mover GfxPostSpritePkt/EftAdXyzf/EftPrim en endian.md; esqueleto
+    `endian-schema.md`; `static_assert` de layouts; división de
+    `xbox360-todo.md` por subsistemas; verificaciones pendientes adicionales).
