@@ -1,0 +1,193 @@
+include/battle/eft_v_ext.h:99:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+include/battle/eft_v_ext.h:106:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+include/battle/eft_v_ext.h:116:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+include/battle/eft_v_ext.h:125:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+include/battle/eft_v_ext.h:132:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+include/battle/eft_z.h:365:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+include/battle/eft_z.h:408:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+include/battle/view_a.h:306:#ifdef PORT /* the PC build adds stages from outside the disc, so the "locked"/"empty" markers move past them */
+include/menu/menu_d.h:137:#ifdef PORT /* (a song added from outside the disc has a file id of its own: port/include/plat_songs.h) */
+include/menu/menu_d.h:212:#ifdef PORT
+include/port/vu0_a.h:1:#ifndef PORT_VU0_A_H
+include/port/vu0_b.h:1:#ifndef PORT_VU0_B_H
+include/sys/dma.h:6:#ifdef PORT
+include/sys/dma.h:73:#ifdef PORT
+include/sys/dma.h:78:#ifdef PORT
+include/sys/dma.h:85:#ifdef PORT /* PC build: every access first completes a transfer that was started (port/src/plat_gs.c) */
+include/sys/dma.h:92:#ifdef PORT /* PC build: every access first completes a transfer that was started (port/src/plat_gs.c) */
+include/sys/vu1_packet.h:15:#ifdef PORT
+src/battle/battle_load.c:12:#ifdef PORT
+src/battle/battle_load.c:202:#ifdef PORT
+src/battle/battle_load.c:537:#ifdef PORT
+src/battle/battle_load.c:547:#ifdef PORT
+src/battle/battle_load.c:578:#ifdef PORT
+src/battle/battle_load.c:1518:#ifdef PORT
+src/battle/battle_load.c:1528:#ifdef PORT
+src/battle/battle_load.c:1544:#ifdef PORT
+src/battle/battle_work.c:2:#ifdef PORT
+src/battle/battle_work.c:58:#ifdef PORT
+src/battle/bobj_a.c:28:#ifdef PORT /* PC build: the full parameter list (see BtlObjMdl_CopyTexAlpha) */
+src/battle/bobj_a.c:1563:#ifdef PORT /* the original passes no third argument: a2 still holds this function's own `dst` at the call.
+src/battle/btl_act_e.c:1369:#ifdef PORT /* PC build: BT3_CLASH_LOG=1 */
+src/battle/btl_act_f.c:3042:#ifdef PORT /* PC build: BT3_CLASH_LOG=1 says what a clash counts (testing the Square option) */
+src/battle/btl_act_f.c:3061:#ifdef PORT
+src/battle/btl_cam.c:134:#ifdef PORT
+src/battle/btl_cam.c:141:#ifdef PORT
+src/battle/btl_cam.c:170:#ifdef PORT
+src/battle/btl_cam.c:512:#ifdef PORT
+src/battle/btl_cam.c:531:#ifdef PORT
+src/battle/btl_char_fx.c:526:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:838:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:847:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:857:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:906:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:912:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_char_fx.c:918:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/btl_script_cmd.c:34:#ifdef PORT /* PC build: the definition's parameter order */
+src/battle/eft_a.c:7:#ifdef PORT
+src/battle/eft_a.c:69:#ifdef PORT /* PC build: by address, as the definition takes it (it only reads the struct; the PS2 passes a by-value struct of this size by address) */
+src/battle/eft_a.c:1375:#ifdef PORT
+src/battle/eft_a.c:1568:#ifdef PORT
+src/battle/eft_a.c:1604:#ifdef PORT
+src/battle/eft_a.c:1640:#ifdef PORT
+src/battle/eft_a.c:1678:#ifdef PORT
+src/battle/eft_a.c:1799:#ifdef PORT
+src/battle/eft_ab.c:49:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_ab_c.c:571:#ifdef PORT /* assigned to: a cast is not an lvalue for a modern compiler */
+src/battle/eft_ad_b.c:649:#ifdef PORT
+src/battle/eft_ad_b.c:703:#ifdef PORT
+src/battle/eft_ae.c:970:#ifdef PORT
+src/battle/eft_b.c:5:#ifdef PORT
+src/battle/eft_b.c:318:#ifdef PORT
+src/battle/eft_c.c:71:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_c.c:95:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_c.c:101:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_c.c:1613:#ifdef PORT
+src/battle/eft_c.c:1664:#ifdef PORT
+src/battle/eft_c.c:1808:#ifdef PORT
+src/battle/eft_d.c:221:#ifdef PORT
+src/battle/eft_d_b.c:1089:#ifdef PORT /* assigned to: a cast is not an lvalue for a modern compiler */
+src/battle/eft_det_a.c:91:#ifdef PORT /* PC build: void, as defined; the value EftDet_HitFighterMulti passes on is never used (0 here) */
+src/battle/eft_det_a.c:136:#ifdef PORT /* PC build: the definition's types (the PS2 passes both in one 64-bit register) */
+src/battle/eft_e.c:2966:#ifdef PORT
+src/battle/eft_g.c:153:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_h.c:1447:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_h.c:1453:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_h.c:1772:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:49:#ifdef PORT /* PC build: the definition's types (the PS2 passes both in one 64-bit register) */
+src/battle/eft_i.c:120:#ifdef PORT /* PC build: by address, as the definition takes it (it only reads the struct; the PS2 passes a by-value struct of this size by address) */
+src/battle/eft_i.c:151:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:157:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:163:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:193:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:199:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:205:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:233:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:239:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:245:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:251:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:277:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:283:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_i.c:289:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_j.c:157:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_k.c:54:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_k.c:147:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_l_d.c:29:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_l_d.c:35:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_o_c.c:111:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_q.c:40:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_r.c:81:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_r.c:114:#ifdef PORT /* PC build: by address, as the definition takes it (it only reads the struct; the PS2 passes a by-value struct of this size by address) */
+src/battle/eft_s.c:65:#ifdef PORT /* PC build: parameters in the definition's order; the macro reorders the calls of this file */
+src/battle/eft_s.c:1551:#ifdef PORT /* assigned to: a cast is not an lvalue for a modern compiler */
+src/battle/eft_s.c:2508:#ifdef PORT
+src/battle/eft_t_c.c:188:#ifdef PORT /* assigned to: a cast is not an lvalue for a modern compiler */
+src/battle/eft_u_b.c:786:#ifdef PORT /* assigned to: a cast is not an lvalue for a modern compiler */
+src/battle/eft_w.c:5:#ifdef PORT
+src/battle/eft_w.c:771:#ifdef PORT
+src/battle/eft_w.c:1313:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_w.c:1320:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/eft_x.c:5:#ifdef PORT
+src/battle/eft_x.c:630:#ifdef PORT
+src/battle/hud_0.c:73:#ifdef PORT
+src/battle/hud_a.c:131:#ifdef PORT
+src/battle/hud_a.c:173:#ifdef PORT
+src/battle/hud_a.c:192:#ifdef PORT
+src/battle/hud_a.c:439:#ifdef PORT
+src/battle/hud_a.c:567:#ifdef PORT
+src/battle/hud_a_b.c:45:#ifdef PORT
+src/battle/hud_a_b.c:321:#ifdef PORT
+src/battle/hud_a_b.c:334:#ifdef PORT
+src/battle/hud_b.c:105:#ifdef PORT
+src/battle/hud_b.c:915:#ifdef PORT
+src/battle/hud_b.c:929:#ifdef PORT
+src/battle/hud_c_b.c:7:#ifdef PORT
+src/battle/hud_c_b.c:612:#ifdef PORT
+src/battle/hud_c_b.c:623:#ifdef PORT
+src/battle/hud_e_b.c:45:#ifdef PORT
+src/battle/hud_e_b.c:854:#ifdef PORT
+src/battle/hud_e_b.c:867:#ifdef PORT
+src/battle/stg_a.c:35:#ifdef PORT
+src/battle/stg_a.c:89:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/battle/stg_a.c:385:#ifdef PORT
+src/battle/stg_a.c:402:#ifdef PORT
+src/battle/stg_a_b.c:65:#ifdef PORT /* PC build: by value, as the definition takes it (the PS2 passes a struct of this size by address) */
+src/menu/menu_a.c:3:#ifdef PORT
+src/menu/menu_a.c:140:#ifdef PORT
+src/menu/menu_a.c:453:#ifdef PORT
+src/menu/menu_a.c:498:#ifdef PORT
+src/menu/menu_b_d.c:254:#ifdef PORT
+src/menu/menu_c_c.c:72:#ifdef PORT
+src/menu/menu_c_e.c:6:#ifdef PORT
+src/menu/menu_c_e.c:95:#ifdef PORT
+src/menu/menu_c_e.c:437:#ifdef PORT
+src/menu/menu_c_e.c:539:#ifdef PORT
+src/menu/menu_c_e.c:588:#ifdef PORT /* PC build: list the stage ids the game loaded, to see what a data pack carries (stages report) */
+src/menu/menu_c_e.c:599:#ifdef PORT
+src/menu/menu_c_e.c:607:#ifdef PORT /* PC build: list the music ids the game loaded, to see the list a data pack carries (music report) */
+src/menu/menu_c_e.c:619:#ifdef PORT
+src/menu/menu_c_e.c:650:#ifdef PORT
+src/menu/menu_c_e.c:757:#ifdef PORT
+src/menu/menu_c_e.c:816:#ifdef PORT
+src/menu/menu_c_e.c:875:#ifdef PORT
+src/menu/menu_c_e.c:965:#ifdef PORT
+src/menu/menu_e_b.c:6:#ifdef PORT
+src/menu/menu_e_b.c:141:#ifdef PORT
+src/menu/menu_e_b.c:362:#ifdef PORT
+src/menu/menu_e_b.c:641:#ifdef PORT
+src/menu/menu_e_b.c:687:#ifdef PORT
+src/menu/menu_e_b.c:813:#ifdef PORT
+src/menu/menu_e_b.c:831:#ifdef PORT /* (a song added from outside the disc has a file id of its own) */
+src/menu/menu_e_b.c:849:#ifdef PORT
+src/menu/menu_e_b.c:963:#ifdef PORT
+src/menu/menu_e_b.c:1052:#ifdef PORT
+src/menu/menu_e_b.c:1475:#ifdef PORT
+src/menu/menu_e_b.c:1489:#ifdef PORT
+src/menu/menu_e_b.c:1562:#ifdef PORT /* (a song added from outside the disc has a file id of its own) */
+src/menu/menu_g_b.c:3:#ifdef PORT
+src/menu/menu_g_b.c:57:#ifdef PORT /* PC build, online session: there is no versus menu in it; going back leaves for the main menu, which
+src/menu/menu_g_b.c:76:#ifdef PORT /* PC build, online session: there is no versus menu in it; going back leaves for the main menu, which
+src/sys/dma.c:98:#ifdef PORT
+src/sys/dma.c:177:#ifndef PORT /* PC build: nothing to wait for */
+src/sys/dma.c:190:#ifndef PORT /* PC build: nothing to wait for */
+src/sys/file.c:56:#ifndef PORT
+src/sys/gfxm_a.c:122:#ifdef PORT
+src/sys/gfxm_a.c:138:#ifdef PORT /* (the setting "Movement blur": the views are kept up to date, nothing is drawn) */
+src/sys/gfxm_a.c:161:#ifdef PORT
+src/sys/gfxm_a.c:433:#ifdef PORT
+src/sys/gfxm_a.c:486:#ifdef PORT
+src/sys/gfxm_a.c:1423:#ifdef PORT
+src/sys/gfxm_a.c:1431:#ifdef PORT
+src/sys/gfxm_b.c:812:#ifdef PORT
+src/sys/gfxm_b.c:820:#ifdef PORT
+src/sys/heap.c:255:#ifdef PORT
+src/sys/mathf.c:37:#ifndef PORT /* PC build: port/src/mathf_pc.c */
+src/sys/mathf.c:77:#ifndef PORT /* PC build: port/src/mathf_pc.c */
+src/sys/mathf.c:129:#ifndef PORT /* PC build: port/src/mathf_pc.c */
+src/sys/movie.c:57:#ifdef PORT
+src/sys/movie.c:66:#ifdef PORT
+src/sys/movie.c:112:#ifdef PORT
+src/sys/movie.c:169:#ifdef PORT
+src/sys/randf.c:18:#ifndef PORT /* PC build: port/src/mathf_pc.c */
+src/sys/randf.c:34:#ifndef PORT /* PC build: port/src/mathf_pc.c */
+src/sys/vu1_packet.c:372:#ifdef PORT
