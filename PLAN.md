@@ -161,7 +161,7 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 ## Pendientes de fase 1 (no empezar todavía)
 - [ ] Instalar el XDK (MSVC 2010 + Xbox 360 SDK) y fijar la versión exacta en `AGENTS.md`.
 - [ ] Crear `docs/port/xbox360-build.md` con los comandos reales de build, empaquetado y subida.
-- [ ] Crear `docs/port/endian-schema.md` para `TexFile`/`TexEntry`, `ObjMdlFile` y `StgRelocHdr`.
+- [x] Crear `docs/port/endian-schema.md` para `TexFile`/`TexEntry`, `ObjMdlFile` y `StgRelocHdr`.
 
 ## Riesgos abiertos
 - Esperas activas sobre `VIF1_STAT`, `GIF_STAT` y `D2_CHCR` en `src/sys/dma.c`. `TODO(hw-wait)`.
@@ -485,3 +485,34 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     500 líneas tras las ediciones; verificaciones pendientes adicionales
     como `sceCdSearchFile`, VIF1_STAT/GIF_STAT, tabla cruzada
     categoría×mecanismo, MCF_POLL; y la versión exacta del SDK del XDK).
+
+- **Sesión 11, 2026-10-11, opencode-go/kimi-k3**:
+  - Creación de `docs/port/endian-schema.md` (145 líneas, dentro del
+    límite de 500 de la regla 16). Complementa a `endian.md` con un mapa
+    campo-a-campo de los structs binarios de disco:
+    1. `TexFile` y `TexEntry` (`include/sys/gfxm_b_b.h:28-52`): tablas con
+       offset, tipo, tamaño, endianness LE en disco y acción en 360
+       (`ReadLE32` + `STG_RELOC` para punteros).
+    2. `ObjMdlFile` (`include/sys/gfxm_e.h:30-49`): idem, incluyendo el
+       bitfield `flags:31/bound:1` (PPC asigna `bound` al MSB; enlaza con
+       `endian.md` 4.4).
+    3. `StgRelocHdr` y sub-structs (`include/sys/gfxm_e.h:172-276`):
+       cabecera del escenario con `STG_RELOC` para cada puntero, y tabla
+       resumen de los 10 sub-structs (A, B, C, D, E, Timer, A1, A2, B1,
+       D1) con sus offsets de punteros.
+    4. `SaveData` (resumen; `static_assert 0x4000`).
+    5. `McFlowReplayFile` (resumen; `static_assert 0x1AC00`).
+  - Verificación de citas (regla 13): todas las líneas citadas confirmadas
+    con `git show HEAD:...` durante la creación. Una cita errónea
+    detectada y corregida: la condición "`0` y `-1` se convierten a NULL"
+    en `StgOctNode.list` está en `src/sys/gfxm_e_d.c:29-30`, no `:43-44`
+    como puse inicialmente; corregido antes del commit.
+  - Commit: `f341907` "fase 0: esqueleto de endian-schema.md (TexFile,
+    ObjMdlFile, StgRelocHdr)" (1 archivo, 194 inserciones, archivo nuevo).
+  - Cierre del pendiente "Crear `docs/port/endian-schema.md`" en
+    "Pendientes de fase 1" de PLAN.md.
+  - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
+    (división de `xbox360-todo.md` por subsistemas si supera 500 líneas;
+    verificaciones pendientes: `sceCdSearchFile`, VIF1_STAT/GIF_STAT,
+    tabla cruzada categoría×mecanismo, MCF_POLL; y la versión exacta
+    del SDK del XDK).
