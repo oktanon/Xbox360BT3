@@ -149,12 +149,11 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
       XAudio2, XContentCreate, XPhysicalAlloc, CreateThread, CRITICAL_SECTION y HLSL; reemplazar
       "auditoría exhaustiva" por la descripción real del método; criterios de salida de la fase 0
       con evidencia; enlace a la sección de riesgos.
-- [x] `endian.md`: SWAP64 completado (expansión portable con SWAP32); tabla de máscaras de
-      bitfields verificada con `git grep` (sesión 9). Quedan pendientes: mover
-      `GfxPostSpritePkt`/`EftAdXyzf`/`EftPrim` a "Formatos de paquetes internos
-      (fuera de la regla de disco)"; sección "Verificación de layout" con
-      `static_assert` para `TexEntry` (0x40), `SaveData` (0x4000) y `McFlowReplayFile`
-      (0x1AC00).
+- [x] `endian.md`: SWAP64 completado (sesión 9), tabla de máscaras de bitfields
+      verificada (sesión 9), paquetes DMA movidos a 3.12 y sección de
+      `static_assert` añadida (sesión 10). Tamaño de los 3 structs verificados
+      con `git grep` (`TexEntry` 0x40 en `gfxm_b_b.h:28`, `SaveData` 0x4000 en
+      `save.h:13`, `McFlowReplayFile` 0x1AC00 en `mcflow_a.h:92`).
 - [ ] `AGENTS.md`: confirmar que tiene criterios de salida de la fase 0, toolchain, ABI, caché y
       ensamblador en contexto técnico, reglas 10 a 16, taxonomía de veredictos, forma de trabajar y
       mapa de documentos. Si falta algo, reportarlo sin agregarlo.
@@ -452,3 +451,37 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     (mover GfxPostSpritePkt/EftAdXyzf/EftPrim en endian.md; esqueleto
     `endian-schema.md`; `static_assert` de layouts; división de
     `xbox360-todo.md` por subsistemas; verificaciones pendientes adicionales).
+
+- **Sesión 10, 2026-10-11, opencode-go/kimi-k3**:
+  - Resto de `endian.md` (punto "segui con el resto de endian.md"):
+    - Sección 3.11: quitadas las 3 entradas de bitfields de 64 bits para
+      paquetes DMA a la GPU (`GfxPostSpritePkt`, `EftAdXyzf`, `EftPrim`).
+      Estas no son datos de disco, así que no cumplen la regla 2 de
+      AGENTS.md; se documentan por separado.
+    - Nueva sección 3.12 "Formatos de Paquetes Internos (Fuera de la Regla
+      de Disco)": reubica las 3 entradas, explica el problema (PPC asigna
+      bits desde MSB; x86 desde LSB; el GPU decodifica por offset fijo) y
+      propone la estrategia de reemplazarlos por funciones `GS_Pack*` con
+      shifts/ORs explícitos sobre posiciones de bits fijas, con un ejemplo
+      completo de `EftAdXyzf_Pack`.
+    - Nueva sección 4.5 "Formatos de Paquetes DMA a la GPU (Bitfields
+      Internos)": resumen estratégico de la 3.12.
+    - Nueva sección 4.6 "Verificación de Layout con `static_assert`": tabla
+      de los 3 structs con tamaño crítico (`TexEntry` 0x40, `SaveData` 0x4000,
+      `McFlowReplayFile` 0x1AC00), cada uno con su cita exacta al header y
+      un bloque de `static_assert` para que el build de host (y de 360)
+      detecte desviaciones en tiempo de compilación.
+  - Todas las citas verificadas con `git grep` (regla 13):
+    `gfxm_b_b.h:28`, `save.h:13` y `:114`, `mcflow_a.h:92`, `gfxm_a.c:67-85`,
+    `eft_ad_b.c:43-48`, `eft_d.c:82-94`.
+  - Commit: `ba40d75` "fase 0: mover paquetes DMA y anadir verificacion
+    de layout en endian.md" (1 archivo, 89 inserciones, 3 borrados).
+  - Cierre del pendiente "`endian.md` SWAP64 y máscaras, mover bitfields
+    internos, sección de static_assert" en "Correcciones de contenido" de
+    PLAN.md.
+  - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
+    (esqueleto de `endian-schema.md` para TexFile/TexEntry, ObjMdlFile y
+    StgRelocHdr; división de `xbox360-todo.md` por subsistemas si supera
+    500 líneas tras las ediciones; verificaciones pendientes adicionales
+    como `sceCdSearchFile`, VIF1_STAT/GIF_STAT, tabla cruzada
+    categoría×mecanismo, MCF_POLL; y la versión exacta del SDK del XDK).
