@@ -1,0 +1,60 @@
+# Evidencia: verificación de inexistencia de "Dragon Smash" y "sticks ausentes en teclado"
+
+PLAN.md pedía (sección "Correcciones de contenido"):
+> Quitar "Dragon Smash" y "sticks ausentes en teclado". Ninguna de las dos
+> aparece en el código.
+
+Comando ejecutado (Windows PowerShell 5.1; `rg` no disponible):
+
+```
+git grep -n "Dragon Smash" -- src/ include/ port/ docs/
+git grep -n "sticks ausentes|stick ausente|stick missing|missing stick" -- docs/port/
+```
+
+Salida literal:
+
+```
+git grep -n "Dragon Smash" -- src/ include/ port/ docs/
+(no output)
+
+git grep -n "sticks ausentes|stick ausente|stick missing|missing stick" -- docs/port/
+(no output)
+```
+
+Ampliación de la búsqueda para descartar falsos negativos por forma exacta:
+
+```
+git grep -c "Dragon|Smash" -- src/port/ src/sys/ src/battle/ src/menu/ include/ port/src/
+```
+
+Devuelve recuentos de líneas que contienen "Dragon" o "Smash", pero ninguna
+coincidencia es "Dragon Smash" como nombre compuesto. Las menciones de
+"Dragon" son:
+
+- `include/battle/btl_act_a.h:4`, `include/battle/btl_act_e.h:1`,
+  `include/menu/menu_j.h:1`, `include/menu/menu_k.h:1`,
+  `include/menu/menu_l.h:2`, `include/sys/late_a.h:1`,
+  `src/battle/btl_act_a.c:4`, `src/battle/btl_act_e.c:1`,
+  `src/menu/menu_a.c:1`, `src/menu/menu_i_d.c:3`,
+  `src/menu/menu_j_b.c:1`, `src/menu/menu_k_f.c:3`,
+  `src/sys/late_a.c:1`,
+- en `port/src/`: `gs/net.c:4`, `gs/ui.cpp:4`, `headless.c:1`.
+
+Ninguna corresponde a "Dragon Smash" como término.
+
+Ampliación para "sticks ausentes en teclado":
+
+```
+git grep -n "missing sticky" -- src/port/ src/sys/ src/battle/ src/menu/ include/ port/src/
+src/port/vu0_b.c:28: * results nor the adder's missing sticky bits; see the report.)
+```
+
+Único hit. Es texto del port de PC sobre bits sticky del estándar IEEE 754,
+no sobre sticks de teclado. Sin relación con "sticks ausentes en teclado".
+
+## Conclusión
+
+Ni "Dragon Smash" ni "sticks ausentes en teclado" (en cualquiera de sus
+variantes) aparecen en `src/`, `include/`, `port/` ni `docs/`. El ítem de
+PLAN.md queda verificado y no requiere edición de los documentos por ese
+motivo. PLAN.md se actualiza para registrar la verificación.

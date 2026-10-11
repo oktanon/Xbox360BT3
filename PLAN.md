@@ -35,6 +35,13 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 ## Verificaciones pendientes
 - [ ] `IVec4_Copy`, `IVec4_Swap` y `Vu0_InitAxisRegs`: confirmar las líneas citadas en
       `src/port/vu0_a.c` (1255, 1271, 1477) con `git grep -n`.
+      **Verificado el 2026-10-11 (sesión 1)**: en `src/port/vu0_a.c` los nombres reales
+      llevan prefijo `Ref_`. Líneas reales: `Ref_IVec4_Swap` en 1173, `Ref_IVec4_Copy`
+      en 1271, `Ref_Vu0_InitAxisRegs` en 1477. La cita 1255 para `IVec4_Swap` no
+      coincide. Las versiones sin prefijo (`IVec4_Swap`, `IVec4_Copy`,
+      `Vu0_InitAxisRegs`) viven como MIPS hand-written en `src/sys/vu0_a_c.c:49-66`,
+      `src/sys/vu0_a_c.c:144-157` y `src/sys/vu0_a_c_b.c:209-219`. Evidencia:
+      `docs/port/evidence/verify-vu0-lines.txt`.
 - [ ] `sceCdSearchFile`: se usa en `src/sys/file.c:194` y no tiene definición en `port/`.
       Si no está en ningún lado, el build de PC no enlaza. Marcar `TODO(verificar-enlace)`.
 - [ ] `VIF1_STAT` y `GIF_STAT`: decidir si son emulación (`port/src/plat_mem.c:10`) o esperas de
@@ -50,7 +57,13 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 ## Correcciones de contenido
 - [ ] `xbox360-todo.md` en "Riesgos técnicos": nota sobre las direcciones PS2 en los `extern` de
       `menu_g_b.c` (`0x356090`, `0x348710`, `0x351508`). Son dependencias de código, no de hardware.
-- [ ] Quitar "Dragon Smash" y "sticks ausentes en teclado". Ninguna de las dos aparece en el código.
+- [x] Quitar "Dragon Smash" y "sticks ausentes en teclado". Ninguna de las dos aparece en el código.
+      **Verificado el 2026-10-11 (sesión 1)**: `git grep -n "Dragon Smash" -- src/ include/ port/ docs/`
+      y `git grep -n "sticks ausentes|stick ausente|stick missing|missing stick" -- docs/port/`
+      no devuelven coincidencias. La única coincidencia de "missing sticky" en
+      `src/port/vu0_b.c:28` es texto sobre bits sticky de IEEE 754, no sobre sticks
+      de teclado. Item descartado; no hay texto a quitar. Evidencia:
+      `docs/port/evidence/verify-dragon-smash-missing.txt`.
 - [ ] `shaders.h`: se genera con `port/tools/undefined.py` (líneas 121 a 150) desde `port/src/gs/shaders/`.
       No es un archivo fuente.
 - [ ] Unificar en la taxonomía la categoría de netplay (Revertir / Desactivar).
@@ -93,4 +106,24 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 5. Al cerrar cada ítem, marcarlo aquí y registrar la sesión.
 
 ## Registro de sesiones
-- (Completar al cerrar cada sesión: fecha, modelo, qué cambió, `TODO` abiertos y archivos tocados.)
+- **Sesión 1, 2026-10-11, opencode-go/minimax-m3**:
+  - Creación de rama `docs/fase0-correcciones` desde `main`. `git status --short`
+    confirma que no hay cambios en `src/` ni en `port/src/` (los archivos sin commitear
+    son `docs/`, `port/tests/endian/`, `PLAN.md` y `AGENTS.md`, todos fuera de las
+    carpetas protegidas).
+  - Commit base `79dcafa` con `PLAN.md` y `docs/port/*` (8 archivos, 2404 inserciones).
+    Se omitieron `AGENTS.md` y `port/tests/endian/` según indicación del usuario.
+  - Verificación reproducible de `IVec4_Copy`, `IVec4_Swap` y `Vu0_InitAxisRegs`
+    en `src/port/vu0_a.c`. Cita de PLAN.md imprecisa: `IVec4_Swap` está en 1173
+    (no 1255); los nombres reales llevan prefijo `Ref_`. Evidencia guardada en
+    `docs/port/evidence/verify-vu0-lines.txt`.
+  - Verificación reproducible de inexistencia de "Dragon Smash" y "sticks ausentes
+    en teclado" en todo el repo (PS2 + PC). Evidencia guardada en
+    `docs/port/evidence/verify-dragon-smash-missing.txt`.
+  - Actualización de `PLAN.md`: marcados los dos items verificados y registrado
+    este resumen de sesión.
+  - Archivos tocados: `PLAN.md`, `docs/port/evidence/verify-vu0-lines.txt`,
+    `docs/port/evidence/verify-dragon-smash-missing.txt` (todos sin commitear
+    todavía, esperando confirmación).
+  - `TODO` abiertos al cierre de la sesión: ninguno nuevo. Las verificaciones
+    restantes de "Verificaciones pendientes" siguen pendientes.

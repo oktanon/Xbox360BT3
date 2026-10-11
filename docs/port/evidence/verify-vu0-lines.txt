@@ -1,0 +1,54 @@
+# Evidencia: verificación de líneas en src/port/vu0_a.c
+
+Reproducible. Comando ejecutado:
+
+```
+git grep -n "IVec4_Copy\|IVec4_Swap\|Vu0_InitAxisRegs" -- src/port/vu0_a.c
+```
+
+Salida literal:
+
+```
+src/port/vu0_a.c:16: * vf2 = (0,1,0,0), vf3 = (1,0,0,0) once Ref_Vu0_InitAxisRegs has run (the game does it at boot, Vu0_Init 0x121DA8);
+src/port/vu0_a.c:720: * leaves vf1..16 and vf19 changed, as on the PS2 (its caller runs Vu0_InitAxisRegs afterwards).
+src/port/vu0_a.c:1173:void Ref_IVec4_Swap(RefVec4 *a, RefVec4 *b) {
+src/port/vu0_a.c:1271:void Ref_IVec4_Copy(RefVec4 *out, RefVec4 *in) {
+src/port/vu0_a.c:1477:void Ref_Vu0_InitAxisRegs(void) {
+```
+
+## Resultado contra PLAN.md
+
+PLAN.md decía (sección "Verificaciones pendientes"):
+> `IVec4_Copy`, `IVec4_Swap` y `Vu0_InitAxisRegs`: confirmar las líneas citadas en
+> `src/port/vu0_a.c` (1255, 1271, 1477) con `git grep -n`.
+
+Confrontado con la salida real:
+
+| Función según PLAN.md | PLAN.md cita | Definición real en src/port/vu0_a.c | Veredicto |
+| :--- | :---: | :---: | :--- |
+| `IVec4_Swap` | 1255 | `Ref_IVec4_Swap` en 1173 | **No coincide**: la línea 1255 no contiene `IVec4_Swap`. El nombre real lleva prefijo `Ref_` y vive en 1173. |
+| `IVec4_Copy` | 1271 | `Ref_IVec4_Copy` en 1271 | **Coincide la línea**; el nombre real lleva prefijo `Ref_`. |
+| `Vu0_InitAxisRegs` | 1477 | `Ref_Vu0_InitAxisRegs` en 1477 | **Coincide la línea**; el nombre real lleva prefijo `Ref_`. |
+
+## Distinción `Ref_` vs nombre simple
+
+- `src/port/vu0_a.c` y `include/port/vu0_a.h` exponen las versiones `Ref_*` (la
+  reescritura C portable del vector unit de referencia usada en el build de PC).
+- Las versiones sin prefijo (`IVec4_Swap`, `IVec4_Copy`, `Vu0_InitAxisRegs`) sólo
+  existen como ensamblador MIPS R5900 hand-written en:
+  - `src/sys/vu0_a_c.c:49-66` (`IVec4_Swap`)
+  - `src/sys/vu0_a_c.c:144-157` (`IVec4_Copy`)
+  - `src/sys/vu0_a_c_b.c:209-219` (`Vu0_InitAxisRegs`)
+- Las declaraciones externas para estas versiones MIPS están en
+  `src/sys/gfxm_d_c.c:41` y `src/sys/vu0_b_c.c:29`.
+
+## Conclusión
+
+La cita de PLAN.md es imprecisa en dos puntos:
+1. La línea 1255 citada para `IVec4_Swap` no contiene esa función; está en 1173.
+2. Los nombres reales en `src/port/vu0_a.c` llevan prefijo `Ref_`. PLAN.md los
+   nombra sin prefijo.
+
+Para el inventario de Xbox 360 corresponde citar las versiones MIPS
+hand-written (`src/sys/vu0_*_c*.c`) como Fuera del build de 360 por contener
+cadenas `asm` MIPS, según AGENTS.md "Contexto técnico - Ensamblador".
