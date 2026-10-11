@@ -14,6 +14,11 @@ import re
 import os
 
 DOC_PATH = "docs/port/xbox360-todo.md"
+DOC_SECTION_1_PATHS = [
+    "docs/port/xbox360-todo-subsistemas-1-2.md",
+    "docs/port/xbox360-todo-subsistemas-3-4.md",
+    "docs/port/xbox360-todo-subsistemas-5-7.md",
+]
 CLASSIFIED_TSV = "docs/port/evidence/classified_calls.tsv"
 VERIFIED_TSV = "docs/port/evidence/verificacion_llamadas.tsv"
 
@@ -25,8 +30,8 @@ SYMBOL_MAP = {
 
     # --- emulación en port/src ---
     "Port_DmaChcr": ("emulación en port/src", "port/src/plat_gs.c:29", "Emulación de registro de canal DMA en port/src/plat_gs.c"),
-    "VIF1_STAT": ("emulación en port/src", "port/src/plat_mem.c:10", "Mapeo MMIO en buffer de memoria de plataforma en port/src/plat_mem.c"),
-    "GIF_STAT": ("emulación en port/src", "port/src/plat_mem.c:10", "Mapeo MMIO en buffer de memoria de plataforma en port/src/plat_mem.c"),
+    "VIF1_STAT": ("espera activa (TODO(hw-wait))", "include/sys/dma.h:83 (mapeado en port/src/plat_mem.c:10)", "Espera activa sobre registro MMIO de PS2: en PC, plat_mem.c mapea la dirección a memoria plana (lectura 0 = transferido). En Xbox 360 debe sustituirse por un fence/Present de D3D9 que espere al GPU. TODO(hw-wait) (regla 10 de AGENTS.md)."),
+    "GIF_STAT": ("espera activa (TODO(hw-wait))", "include/sys/dma.h:84 (mapeado en port/src/plat_mem.c:10)", "Espera activa sobre registro MMIO de PS2: idem VIF1_STAT; sustituir por fence/Present de D3D9 en Xbox 360. TODO(hw-wait) (regla 10 de AGENTS.md)."),
     "IVec4_Copy": ("emulación en port/src", "src/port/vu0_a.c:1271", "Reimplementación funcional en C de matemática VU0 en src/port/vu0_a.c"),
     "IVec4_Swap": ("emulación en port/src", "src/port/vu0_a.c:1173", "Reimplementación funcional en C de matemática VU0 en src/port/vu0_a.c"),
     "Vu0_InitAxisRegs": ("emulación en port/src", "src/port/vu0_a.c:1477", "Reimplementación funcional en C de inicialización VU0 en src/port/vu0_a.c"),
@@ -300,13 +305,12 @@ def verify_single_call(fpath, line_no, sym):
         return ("sí", f"L{line_no}", f"Invocación unilínea verificada a {sym}() (L{line_no})")
 
 def main():
-    with open(DOC_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    sec1_match = re.search(r"## 1\. Llamadas a Hardware PS2 por Subsistema.*?(?=## 2\. Inventario)", content, re.DOTALL)
-    if not sec1_match:
-        raise ValueError("No se encontró la Sección 1 en " + DOC_PATH)
-    sec1_text = sec1_match.group(0)
+    # Tras la division de xbox360-todo.md (sesion 12), la seccion 1 vive en 3 archivos
+    # de subsistemas. Concatenamos sus contenidos como si fuera la seccion 1 original.
+    sec1_text = ""
+    for p in DOC_SECTION_1_PATHS:
+        with open(p, "r", encoding="utf-8") as f:
+            sec1_text += f.read() + "\n"
 
     rows = []
     for line in sec1_text.splitlines():

@@ -1,0 +1,26 @@
+Tabla cruzada: categoria x mecanismo (de classified_calls.tsv)
+Total filas: 369
+
+categoria	#ifdef PORT	emulación en port/src	espera activa (TODO(hw-wait))	sin reemplazo	stub de enlace (port/src)	total
+Acceso a registro hardware PS2	7	0	19	0	0	26
+Comando VU1 NOP	0	0	0	26	0	26
+Comentario	0	0	0	1	0	1
+Declaración de función	0	0	0	17	0	17
+Definición de función en src	0	9	0	18	0	27
+Directiva #define	3	11	0	0	1	15
+Ensamblador inline MIPS	0	12	0	0	0	12
+Llamada real a función en src	0	82	0	28	65	175
+Stub / implementación en port/src	0	29	0	0	41	70
+total	10	143	19	90	107	369
+
+Nota sobre la asimetria 70 vs 107:
+  - 70 = categoria 'Stub / implementacion en port/src': son las DEFINICIONES
+    de stubs en port/src/ (filas cuyo archivo es port/src/*.c).
+  - 107 = mecanismo 'stub de enlace (port/src)': cubre TODAS las filas
+    cuyo simbolo tiene un stub en port/src/ como reemplazo,
+    lo que incluye: las 41 definiciones de stubs en port/src/ que
+    coinciden con la categoria 'Stub / implementacion' (mecanismo
+    = stub de enlace), 65 llamadas reales a esos stubs desde src/
+    (categoria = 'Llamada real a funcion en src', mecanismo =
+    stub de enlace), y 1 directiva #define (categoria = 'Directiva
+    #define', mecanismo = stub de enlace). Total: 41 + 65 + 1 = 107.
