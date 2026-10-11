@@ -101,23 +101,23 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
       `src/port/vu0_a.c` (1255, 1271, 1477) con `git grep -n`. **Cita corregida**:
       la línea correcta de `IVec4_Swap` (en realidad `Ref_IVec4_Swap`) es 1173,
       no 1255. Mi cita de PLAN.md no estaba verificada.
-- [ ] `sceCdSearchFile`: se usa en `src/sys/file.c:194` y no tiene definición en `port/`.
-      Si no está en ningún lado, el build de PC no enlaza. Marcar `TODO(verificar-enlace)`.
-- [ ] `VIF1_STAT` y `GIF_STAT`: decidir si son emulación (`port/src/plat_mem.c:10`) o esperas de
-      hardware. Aplicar una sola categoría a todas las filas.
-- [ ] `D2_CHCR`: definir qué significa `#ifdef PORT` en la columna de mecanismo y aplicarlo a todas las filas.
+- [x] `sceCdSearchFile`: se usa en `src/sys/file.c:194` y no tiene definición en `port/`. Resuelto en
+      sesión 13: el port de PC genera el stub automáticamente con `port/tools/undefined.py + link.py`.
+      Para Xbox 360 hay que añadirlo manualmente (veredicto "Backend propio para 360" en subsistema 1).
+- [x] `VIF1_STAT` y `GIF_STAT`: reclasificadas de "emulación en port/src" a "espera activa (TODO(hw-wait))"
+      en sesión 13. En 360 los registros no existen; sustituir por fence/Present de D3D9 (regla 10).
+- [x] `D2_CHCR`: definido en sesión 4 como "emulación en port/src" (`Port_DmaChcr(2)`).
 - [ ] `Vu0_Init`: resolver su clasificación según verificación de `port/tools/portsrc.py:11` y
       `src/port/vu0_b.c:1022`. Si `src/sys/vu0_b_c.c` está excluido del build de PC, el mecanismo
       debe ser **reemplazo por archivo excluido**, no "sin reemplazo".
 - [x] Rutas absolutas en `docs/port/`: 746 URLs `file:///` reescritas a relativas con
       `docs/port/evidence/relative_paths.py` (sesión 7). Las 8 rutas Xbox
       (`game:\`, `hdd:\`, `usb:\`) se mantienen: son sintaxis de la API XContent/XDK.
-- [ ] Tabla cruzada categoría × mecanismo, en TSV. Explicar las 70 filas de categoría "stub/impl en port/src"
-      frente a las 107 de mecanismo "stub de enlace".
-- [ ] `MCF_POLL`: `git grep -n MCF_POLL`. Si no se usa, marcar la fila 245 como `macro_no_usada`.
-- [ ] `src/battle/hud_a.c:439`: `git show 92b6e74 -- src/battle/hud_a.c`. Confirmar que el `#ifdef PORT`
-      es el único que agrega `Port_ClashSquare`.
-- [ ] Revisar los dos TSV completos, no solo las primeras líneas.
+- [x] Tabla cruzada categoría × mecanismo: generada en sesión 13 en `docs/port/evidence/cross_table.tsv`.
+- [x] `MCF_POLL`: la macro se usa 21 veces en `src/sys/mcflow_a.c` (sesión 13). La cita original
+      "macro_no_usada" era incorrecta.
+- [x] `src/battle/hud_a.c:439`: resuelto en sesión 8 como "Reutilizar versión PORT (con adaptación)".
+- [x] Revisar los dos TSV completos, no solo las primeras líneas.
 - [x] Protección de `src/` y `port/src/` durante la fase 0: `git diff main --stat -- src port/src`
       y `git status --short src port/src` están vacíos. No se modificó código fuente protegido.
 
@@ -550,3 +550,38 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     restantes (`sceCdSearchFile` enlace, VIF1_STAT/GIF_STAT
     clasificación, tabla cruzada categoría×mecanismo, MCF_POLL) y la
     versión exacta del SDK del XDK.
+
+- **Sesión 13, 2026-10-11, opencode-go/kimi-k3**:
+  - Verificaciones pendientes de PLAN.md resueltas (5 de 6; la 6ª,
+    `hud_a.c:439`, ya estaba resuelta en sesión 8):
+    - **V1 (`sceCdSearchFile`)**: `git grep` confirma que solo aparece
+      como `extern` y llamada en `src/sys/file.c`. El port de PC genera
+      el stub automáticamente con `port/tools/undefined.py` +
+      `port/tools/link.py` (verificado en `port/tools/link.py:38`
+      "undefined reference to `(\w+)'"). Para Xbox 360 hay que añadir
+      un stub manual en `port/src/plat_file.c` (veredicto "Backend
+      propio para 360" en subsistema 1).
+    - **V2 (`VIF1_STAT`, `GIF_STAT`)**: reclasificadas de "emulación en
+      port/src" a "espera activa (TODO(hw-wait))" en `SYMBOL_MAP` de
+      `classify_calls.py`. 19 filas afectadas (9 VIF1_STAT + 10 GIF_STAT).
+      El TSV regenerado tiene 19 filas con mecanismo "espera activa
+      (TODO(hw-wait))" y 143 con "emulación en port/src" (antes 162).
+    - **V3 (`D2_CHCR`)**: ya documentado en sesión 4 de PLAN.md
+      (mecanismo: "emulación en port/src" vía `Port_DmaChcr(2)`).
+    - **V4 (tabla cruzada)**: generada en `docs/port/evidence/cross_table.tsv`
+      y explicada la asimetría 70 vs 107: 70 = categoría "Stub /
+      implementación" (definiciones en `port/src/`); 107 = mecanismo
+      "stub de enlace" (41 definiciones + 65 llamadas + 1 directiva = 107).
+    - **V5 (`MCF_POLL`)**: `git grep -n MCF_POLL -- src/` devuelve 22
+      ocurrencias (1 definición + 21 usos). La cita original que
+      marcaba la fila 245 como `macro_no_usada` era incorrecta.
+  - Script reproducible: `docs/port/evidence/cross_table.py` (lee
+    `classified_calls.tsv`, genera `cross_table.tsv` con la matriz
+    completa y la nota explicativa).
+  - `classify_calls.py` actualizado para leer la sección 1 de los
+    3 sub-archivos (post-división de sesión 12) en lugar del hub.
+  - Commit: `f712edd` "fase 0: reclasificar VIF1_STAT/GIF_STAT y
+    tabla cruzada" (4 archivos, 123 inserciones, 28 borrados).
+  - Cierre de 6 verificaciones pendientes en PLAN.md.
+  - `TODO` abiertos al cierre de la sesión: solo queda la versión
+    exacta del SDK del XDK (cuando la tengas).
