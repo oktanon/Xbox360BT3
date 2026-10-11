@@ -109,8 +109,9 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 - [ ] `Vu0_Init`: resolver su clasificación según verificación de `port/tools/portsrc.py:11` y
       `src/port/vu0_b.c:1022`. Si `src/sys/vu0_b_c.c` está excluido del build de PC, el mecanismo
       debe ser **reemplazo por archivo excluido**, no "sin reemplazo".
-- [ ] Rutas absolutas en `docs/port/`: desglosar por patrón (`file:///`, rutas Windows, `/home/`, `/Users/`)
-      y distinguir rutas reales de falsos positivos.
+- [x] Rutas absolutas en `docs/port/`: 746 URLs `file:///` reescritas a relativas con
+      `docs/port/evidence/relative_paths.py` (sesión 7). Las 8 rutas Xbox
+      (`game:\`, `hdd:\`, `usb:\`) se mantienen: son sintaxis de la API XContent/XDK.
 - [ ] Tabla cruzada categoría × mecanismo, en TSV. Explicar las 70 filas de categoría "stub/impl en port/src"
       frente a las 107 de mecanismo "stub de enlace".
 - [ ] `MCF_POLL`: `git grep -n MCF_POLL`. Si no se usa, marcar la fila 245 como `macro_no_usada`.
@@ -352,3 +353,37 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     nuevo), `git grep` para localizar las menciones a libxenon y XDK.
   - `TODO` abiertos al cierre de la sesión: ninguno nuevo. La versión exacta del SDK
     del XDK queda como pendiente en "Pendientes de fase 1" de PLAN.md.
+
+- **Sesión 7, 2026-10-11, opencode-go/kimi-k3**:
+  - Confirmado por el usuario: toolchain XDK (decidido en sesión 5) + versión del SDK
+    queda pendiente. Plan: commit 1 (sesiones 5+6) y luego punto 2 (rutas relativas).
+  - Commit 1: `bbfe268` "fase 0: hoja de ruta a XDK y AGENTS.md actualizado"
+    (3 archivos: `PLAN.md`, `docs/port/xbox360-status.md`, `AGENTS.md`).
+  - Punto 2: rutas relativas en `docs/port/`. Análisis de patrones con `git grep`:
+    729 líneas con la raíz `file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/`
+    en 3 archivos (`endian.md`, `xbox360-status.md`, `xbox360-todo.md`); el conteo
+    por ocurrencias del script es 746.
+  - Script reproducible: `docs/port/evidence/relative_paths.py` (modo dry-run por
+    defecto; `--apply` para reescribir). Evidencia: `docs/port/evidence/relative-paths.txt`
+    (746 líneas con el mapeo original → relativo).
+  - Aplicado: 746 URLs reescritas. `git grep -c 'file:///' -- 'docs/'` devuelve 0.
+    Las 8 rutas Xbox (`game:\`, `hdd:\`, `usb:\`) se mantienen: son sintaxis de la
+    API XContent/XDK, no `file:///` ni rutas de la máquina.
+  - Verificación posterior: 2 enlaces a `port/src/gs/shaders.h` (archivo generado,
+    no fuente) ya existían antes; no se introdujeron nuevos enlaces rotos.
+  - Commit 2: `110ba2e` "fase 0: rutas relativas en docs/port/ y contenido de
+    sesiones 2-4" (9 archivos, 1636 inserciones, 744 borrados). Incluye los cambios
+    de contenido de sesiones 2-4 que estaban sin commitear
+    (`docs/port/evidence/classified_calls.tsv`, `classify_calls.py`,
+    `verify-vu0-lines.txt`, nuevo `grep-vu0-raw.txt`, y los cambios de
+    `xbox360-todo.md`: sección "4. Riesgos abiertos" + `TODO(verificar-enlace-vu0)`).
+    Mezclarlos en un solo commit es la forma más simple de mantener la historia
+    lineal; si el usuario prefiere separarlos, se puede reescribir.
+  - Cierre del pendiente "Rutas absolutas en `docs/port/`" en "Verificaciones
+    pendientes" de PLAN.md.
+  - `port/tests/endian/` queda como untracked, fuera del repo por decisión de la
+    sesión 1 (registrada en PLAN.md).
+  - `TODO` abiertos al cierre de la sesión: los restantes de fase 0
+    (11 "Revisar caso por caso", `endian.md` SWAP64/máscaras, esqueleto
+    `endian-schema.md`, `static_assert` de layouts, división de
+    `xbox360-todo.md` por subsistemas).
