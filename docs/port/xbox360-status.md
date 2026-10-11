@@ -2,6 +2,24 @@
 
 Seguimiento del estado de los subsistemas para el port de Dragon Ball Z: Budokai Tenkaichi 3 (PS2, SLUS-21678) a Xbox 360 (PowerPC Xenon, 32 bits, big-endian), según las reglas definidas en `AGENTS.md`.
 
+Toolchain decidido (sesión 5): **XDK** (Microsoft Xbox 360 SDK: Direct3D 9, XInput, XAudio2, XContent). Detalle de tareas en `PLAN.md` (raíz del repo), sección "Hoja de ruta de fases".
+
+## Hoja de ruta de fases
+
+| Fase | Nombre | Subsistemas (regla 3) | Estado | Criterio de salida |
+| :--: | :--- | :--- | :--- | :--- |
+| 0 | Análisis y documentación | — | en curso | Toolchain fijado por escrito; 0 veredictos "Revisar caso por caso"; 0 rutas absolutas en `docs/`; esqueleto de `docs/port/endian-schema.md` |
+| 1 | Toolchain y esqueleto ejecutable | — | pendiente | XEX que arranca y llega con log hasta `Gfx_Init()` |
+| 2 | Archivos, memoria e input | 1, 2 | pendiente | Recursos cargados con valores correctos (logs); input XInput verificado |
+| 3 | Renderer | 3 | pendiente | Menú navegable y batalla renderizada, comparables con el build PC (hash/captura) |
+| 4 | Sonido | 4 | pendiente | Música, voces y SFX correctos (XAudio2) |
+| 5 | Memory Card | 5 | pendiente | Guardar/cargar partida y replay con checksum válido |
+| 6 | Películas | 6 | pendiente | Opening y cutscenes reproduciéndose con sincronía A/V |
+| 7 | Lógica restante y verificación | 7 | pendiente | Paridad funcional con el build PC (mismas entradas → mismo log de estado) |
+| 8 | Optimización y empaquetado | — | pendiente | Release instalable en RGH con guía de usuario |
+
+Nota de arquitectura: Xbox 360 es 32 bits nativo, por lo que la maquinaria de punteros del port de PC (`port/tools/ptr32.py`, mapeo bajo 4 GB de `port/src/plat_mem.c`) no es necesaria; las direcciones PS2 caben directas en el espacio plano de 32 bits. El trabajo se concentra en endianness big-endian y en la capa de plataforma.
+
 ## Estados válidos (Regla 5)
 - **pendiente**: No iniciado.
 - **en curso**: En desarrollo o adaptación activa.
