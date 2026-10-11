@@ -28,7 +28,7 @@ SYMBOL_MAP = {
     "VIF1_STAT": ("emulación en port/src", "port/src/plat_mem.c:10", "Mapeo MMIO en buffer de memoria de plataforma en port/src/plat_mem.c"),
     "GIF_STAT": ("emulación en port/src", "port/src/plat_mem.c:10", "Mapeo MMIO en buffer de memoria de plataforma en port/src/plat_mem.c"),
     "IVec4_Copy": ("emulación en port/src", "src/port/vu0_a.c:1271", "Reimplementación funcional en C de matemática VU0 en src/port/vu0_a.c"),
-    "IVec4_Swap": ("emulación en port/src", "src/port/vu0_a.c:1255", "Reimplementación funcional en C de matemática VU0 en src/port/vu0_a.c"),
+    "IVec4_Swap": ("emulación en port/src", "src/port/vu0_a.c:1173", "Reimplementación funcional en C de matemática VU0 en src/port/vu0_a.c"),
     "Vu0_InitAxisRegs": ("emulación en port/src", "src/port/vu0_a.c:1477", "Reimplementación funcional en C de inicialización VU0 en src/port/vu0_a.c"),
     "func_00277A70": ("emulación en port/src", "port/src/gs/snd_adx.c:12", "Emulación de audio CRI ADX en port/src/gs/snd_adx.c"),
     "func_002967C0": ("emulación en port/src", "port/src/gs/snd_se.c:45", "Emulación de sonido SPU2 en port/src/gs/snd_se.c"),

@@ -41,10 +41,10 @@ Los subsistemas se abordan estrictamente en el orden establecido por la Regla 3 
 | 7 | Lógica restante | pendiente | `port/src/headless.c`<br>`port/src/plat_sys.c`<br>`port/src/plat_stub.c`<br>`port/src/softfloat_ps2.c`<br>`port/src/mathf_pc.c`<br>`port/src/plat_libm.c`<br>`port/src/plat_crash.c`<br>`port/src/plat_stages.c`<br>`port/src/plat_extras.c`<br>`port/src/plat_settings.c`<br>`port/src/plat_fastvec.c` | Aritmética de punto flotante PS2 (FPU/VMX), temporización / VBlank, stubs de syscalls del kernel PS2, inicialización y harness de pruebas. |
 
 ## Progreso de Fase 0 (Análisis y Documentación)
-- [x] Inventario inicial de dependencias y llamadas a hardware PS2 ([docs/port/xbox360-todo.md](file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/docs/port/xbox360-todo.md)).
-- [x] Especificación de política de conversión de endianness ([docs/port/endian.md](file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/docs/port/endian.md)).
-- [x] Auditoría exhaustiva de los 191 bloques `#ifdef PORT` / `#ifndef PORT` en `src/` e `include/` con veredicto técnico para PowerPC Xenon / 360 ([docs/port/xbox360-todo.md#21-desglose-exhaustivo-de-bloques-ifdef-port--ifndef-port-src-e-include](file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/docs/port/xbox360-todo.md#L504)).
-- [x] Inventario exhaustivo de interfaces en `port/src/`: dependencias de Vulkan, SDL y APIs de PC con veredicto técnico para Xbox 360 ([docs/port/xbox360-todo.md#31-desglose-detallado-de-interfaces-vulkan-sdl-y-apis-de-pc](file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/docs/port/xbox360-todo.md#L746)).
-- [x] Suite de tests unitarios de conversión de endianness en el host (Python) para enteros de 16, 32 y 64 bits y float32 con casos de borde ([port/tests/endian/](file:///c:/Users/Usuario/Desktop/Xbox360BT3/Xbox360BT3/port/tests/endian/)).
+- [x] Inventario inicial de dependencias y llamadas a hardware PS2 ([docs/port/xbox360-todo.md](./xbox360-todo.md)).
+- [x] Especificación de política de conversión de endianness ([docs/port/endian.md](./endian.md)).
+- [x] Auditoría exhaustiva de los 191 bloques `#ifdef PORT` / `#ifndef PORT` en `src/` e `include/` con veredicto técnico para PowerPC Xenon / 360 ([docs/port/xbox360-todo.md#21-desglose-exhaustivo-de-bloques-ifdef-port--ifndef-port-src-e-include](./xbox360-todo.md#L504)).
+- [x] Inventario exhaustivo de interfaces en `port/src/`: dependencias de Vulkan, SDL y APIs de PC con veredicto técnico para Xbox 360 ([docs/port/xbox360-todo.md#31-desglose-detallado-de-interfaces-vulkan-sdl-y-apis-de-pc](./xbox360-todo.md#L746)).
+- [x] Suite de tests unitarios de conversión de endianness en el host (Python) para enteros de 16, 32 y 64 bits y float32 con casos de borde ([port/tests/endian/](../../port/tests/endian)).
 
 

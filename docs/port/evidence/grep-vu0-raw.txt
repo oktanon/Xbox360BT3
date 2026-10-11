@@ -1,0 +1,45 @@
+# Salida cruda de git grep para IVec4_Copy, IVec4_Swap, Vu0_InitAxisRegs
+
+Comando ejecutado:
+
+```
+git grep -n "IVec4_Copy\|IVec4_Swap\|Vu0_InitAxisRegs" -- include/ src/sys/ src/port/ port/
+```
+
+Salida literal (sin anotaciones):
+
+```
+include/port/vu0_a.h:30:    RefVec4 vf[32];    /* vf0 = (0,0,0,1) hard-wired; vf1-3 = unit vectors after Ref_Vu0_InitAxisRegs; vf16-19 = current matrix */
+include/port/vu0_a.h:62:    void Ref_IVec4_Swap(RefVec4 *a, RefVec4 *b);
+include/port/vu0_a.h:73:    void Ref_IVec4_Copy(RefVec4 *out, RefVec4 *in);
+include/port/vu0_a.h:89:    void Ref_Vu0_InitAxisRegs(void);
+port/src/vu0_names.h:26:#define Ref_IVec4_Copy IVec4_Copy
+port/src/vu0_names.h:37:#define Ref_IVec4_Swap IVec4_Swap
+port/src/vu0_names.h:169:#define Ref_Vu0_InitAxisRegs Vu0_InitAxisRegs
+src/port/vu0_a.c:16: * vf2 = (0,1,0,0), vf3 = (1,0,0,0) once Ref_Vu0_InitAxisRegs has run (the game does it at boot, Vu0_Init 0x121DA8);
+src/port/vu0_a.c:720: * leaves vf1..16 and vf19 changed, as on the PS2 (its caller runs Vu0_InitAxisRegs afterwards).
+src/port/vu0_a.c:1173:void Ref_IVec4_Swap(RefVec4 *a, RefVec4 *b) {
+src/port/vu0_a.c:1271:void Ref_IVec4_Copy(RefVec4 *out, RefVec4 *in) {
+src/port/vu0_a.c:1477:void Ref_Vu0_InitAxisRegs(void) {
+src/sys/gfxm_d_c.c:41:extern void Vu0_InitAxisRegs(void);
+src/sys/gfxm_d_c.c:90:        Vu0_InitAxisRegs();
+src/sys/vu0_a_c.c:6: * IVec4_Swap, IVec4_Copy and the three VU0 conversions are hand-written assembly in the original and are kept as
+src/sys/vu0_a_c.c:49:/* void IVec4_Swap(IVec4 *a, IVec4 *b): swaps two vectors with 128-bit moves. Hand-written assembly ($t0 / $t1); the
+src/sys/vu0_a_c.c:55:    ".globl IVec4_Swap\n"
+src/sys/vu0_a_c.c:56:    ".type IVec4_Swap, @function\n"
+src/sys/vu0_a_c.c:59:    "IVec4_Swap:\n"
+src/sys/vu0_a_c.c:66:    ".size IVec4_Swap, . - IVec4_Swap\n"
+src/sys/vu0_a_c.c:144:/* void IVec4_Copy(IVec4 *out, IVec4 *in): out = in, one 128-bit move. Hand-written assembly ($t0). */
+src/sys/vu0_a_c.c:148:    ".globl IVec4_Copy\n"
+src/sys/vu0_a_c.c:149:    ".type IVec4_Copy, @function\n"
+src/sys/vu0_a_c.c:152:    "IVec4_Copy:\n"
+src/sys/vu0_a_c.c:157:    ".size IVec4_Copy, . - IVec4_Copy\n"
+src/sys/vu0_a_c_b.c:11: * (Vu0_InitAxisRegs at boot).
+src/sys/vu0_a_c_b.c:205:/* void Vu0_InitAxisRegs(void): vf1 = (0,0,1,0), vf2 = (0,1,0,0), vf3 = (1,0,0,0). */
+src/sys/vu0_a_c_b.c:209:    ".globl Vu0_InitAxisRegs\n"
+src/sys/vu0_a_c_b.c:210:    ".type Vu0_InitAxisRegs, @function\n"
+src/sys/vu0_a_c_b.c:213:    "Vu0_InitAxisRegs:\n"
+src/sys/vu0_a_c_b.c:219:    ".size Vu0_InitAxisRegs, . - Vu0_InitAxisRegs\n"
+src/sys/vu0_b_c.c:29:extern void Vu0_InitAxisRegs(void);                /* vf1-3 = unit vectors */
+src/sys/vu0_b_c.c:1085:    Vu0_InitAxisRegs();
+```

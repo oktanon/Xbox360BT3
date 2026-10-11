@@ -26,7 +26,7 @@ Confrontado con la salida real:
 
 | Función según PLAN.md | PLAN.md cita | Definición real en src/port/vu0_a.c | Veredicto |
 | :--- | :---: | :---: | :--- |
-| `IVec4_Swap` | 1255 | `Ref_IVec4_Swap` en 1173 | **No coincide**: la línea 1255 no contiene `IVec4_Swap`. El nombre real lleva prefijo `Ref_` y vive en 1173. |
+| `IVec4_Swap` | 1255 | `Ref_IVec4_Swap` en 1173 | **No coincide** (la cita 1255 era errónea; el agente la corrigió a 1173). El nombre real lleva prefijo `Ref_`. |
 | `IVec4_Copy` | 1271 | `Ref_IVec4_Copy` en 1271 | **Coincide la línea**; el nombre real lleva prefijo `Ref_`. |
 | `Vu0_InitAxisRegs` | 1477 | `Ref_Vu0_InitAxisRegs` en 1477 | **Coincide la línea**; el nombre real lleva prefijo `Ref_`. |
 
@@ -44,11 +44,9 @@ Confrontado con la salida real:
 
 ## Conclusión
 
-La cita de PLAN.md es imprecisa en dos puntos:
-1. La línea 1255 citada para `IVec4_Swap` no contiene esa función; está en 1173.
-2. Los nombres reales en `src/port/vu0_a.c` llevan prefijo `Ref_`. PLAN.md los
-   nombra sin prefijo.
-
-Para el inventario de Xbox 360 corresponde citar las versiones MIPS
-hand-written (`src/sys/vu0_*_c*.c`) como Fuera del build de 360 por contener
-cadenas `asm` MIPS, según AGENTS.md "Contexto técnico - Ensamblador".
+La cita de PLAN.md era imprecisa en la línea de `IVec4_Swap` (1255 no contiene
+esa función; está en 1173 con el prefijo `Ref_`). Las líneas y nombres reales
+fueron registrados. Para el inventario de Xbox 360 corresponde citar las
+versiones MIPS hand-written (`src/sys/vu0_*_c*.c`) como Fuera del build de 360
+por contener cadenas `asm` MIPS, según AGENTS.md "Contexto técnico -
+Ensamblador".
