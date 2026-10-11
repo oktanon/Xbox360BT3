@@ -193,7 +193,8 @@ En PowerPC Xenon existen instrucciones específicas de hardware para lectura y e
     #define SWAP16(x) ((((u16)(x) & 0xFF) << 8) | (((u16)(x) >> 8) & 0xFF))
     #define SWAP32(x) ((((u32)(x) & 0xFF) << 24) | (((u32)(x) & 0xFF00) << 8) | \
                        (((u32)(x) >> 8) & 0xFF00) | (((u32)(x) >> 24) & 0xFF))
-    #define SWAP64(x) ...
+    #define SWAP64(x) (((u64)SWAP32((u32)((u64)(x)         )) << 32) | \
+                       (u64)SWAP32((u32)((u64)(x) >> 32)))
 #endif
 ```
 
@@ -253,6 +254,42 @@ static inline void WriteLE32(void *p, u32 v) {
      - `Save_Serialize(u8 *dstRaw, const SaveData *src)`: Vuelca la struct a un buffer binario little-endian con `WriteLE*` y calcula el checksum final mediante `McCard_Checksum`.
 4. **Categoría 4: Refactorización de Bitfields y Uniones**
    - Aplicable a: `ObjMdlFile.bound`, `Hud`, `HudCSprite`, `HudENode`.
+   - **Máscaras reales (verificadas)**: las macros de máscara están definidas en los
+     propios headers, en little-endian-asumido (LSB = bit 0):
+
+     | Struct | Campo (bitfield) | Máscara | `#define` | Header |
+     | :--- | :--- | :---: | :--- | :--- |
+     | `ObjMdlFile` | `bound : 1` | `0x80000000` | (no hay macro; es el bit MSB del campo `u32 flags : 31`) | [include/sys/gfxm_e.h:32-33](../../include/sys/gfxm_e.h#L32) |
+     | `Hud` | `showGauges : 1` | `0x01` | `HUD_SHOW_GAUGES 0x01` | [include/battle/hud_a.h:76](../../include/battle/hud_a.h#L76) |
+     | `Hud` | `showTimer : 1` | `0x02` | `HUD_SHOW_TIMER 0x02` | [include/battle/hud_a.h:77](../../include/battle/hud_a.h#L77) |
+     | `Hud` | `showNotice : 1` | `0x04` | `HUD_SHOW_NOTICE 0x04` | [include/battle/hud_a.h:78](../../include/battle/hud_a.h#L78) |
+     | `Hud` | `showCombo : 1` | `0x08` | `HUD_SHOW_COMBO 0x08` | [include/battle/hud_a.h:79](../../include/battle/hud_a.h#L79) |
+     | `Hud` | `showPrompt : 1` | `0x10` | `HUD_SHOW_PROMPT 0x10` | [include/battle/hud_a.h:80](../../include/battle/hud_a.h#L80) |
+     | `HudCSprite` | `hidden : 1` | `0x01` | `HUDC_SPR_HIDDEN 1` | [include/battle/hud_c.h:40](../../include/battle/hud_c.h#L40) |
+     | `HudCSprite` | `mirror : 1` | `0x02` | `HUDC_SPR_MIRROR 2` | [include/battle/hud_c.h:41](../../include/battle/hud_c.h#L41) |
+     | `HudENode` | `hidden : 1` | `0x01` | (sin macro; comentario en línea: "bit 0: hidden") | [include/battle/hud_e.h:31-35](../../include/battle/hud_e.h#L31) |
+     | `HudENode` | `mirror : 1` | `0x02` | (sin macro; comentario en línea: "bit 1: mirrored") | [include/battle/hud_e.h:31-35](../../include/battle/hud_e.h#L31) |
+
+     **Riesgo en PowerPC big-endian**: GCC en PowerPC asigna los bits del bitfield
+     desde el MSB. Un `u32 hidden : 1` ocupa el bit 31, no el 1. Los setters
+     (`hidden = ...`) y los readers (`flags & HUDC_SPR_HIDDEN`) trabajan con
+     posiciones distintas, así que toda escritura a través de la unión produce
+     resultados diferentes en PPC. Comprobado: `git grep -n "HUD_SHOW_\|HUDC_SPR_\|HudE_"`
+     devuelve las máscaras en los LSB, y los accesos al campo del bitfield pasan
+     por el bit MSB en PPC.
    - Implementación:
-     - En `ObjMdlFile`: Reemplazar el bitfield por un entero explícito `u32 flags` y utilizar máscaras (`flags & 0x80000000` o la correspondiente para `bound`).
-     - En `Hud`, `HudCSprite`, `HudENode`: Eliminar la unión anónima y sustituir los accesos a campos de bits por setters/getters que manipulen directamente la máscara de bits en `u32 flags`.
+     - En `ObjMdlFile`: Reemplazar el bitfield por un entero explícito `u32 flags`
+       (los 31 bits de `flags`) y un `u32 bound` separado, o mantener el bitfield
+       aceptando que `bound` está en el MSB. El único uso actual de
+       `mdl->file->bound` en el código del juego es lectura/escritura a través
+       del bitfield (`src/sys/gfxm_e_b.c:173`); no se accede a `flags` desde
+       `src/`, así que basta con corregir el bitfield a un `u32 bound : 1`
+       explícito, o documentar la posición MSB y adaptar el código de `Mdl_ByteSwapFile`
+       (que recorre el archivo tras la carga) para que invierta `bound` por
+       separado si se mantiene el bitfield.
+     - En `Hud`, `HudCSprite`, `HudENode`: Eliminar la unión anónima y sustituir los
+       accesos a campos de bits por setters/getters que operen directamente sobre
+       `u32 flags` con las máscaras LSB listadas arriba (p. ej. `if (flags & 0x01)`
+       para `hidden` y `showGauges`). La conversión de bitfield a máscara es local
+       a cada módulo y no requiere tocar disco (estos structs viven en memoria
+       local, no en archivos).
