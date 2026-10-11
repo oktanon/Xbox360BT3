@@ -91,7 +91,7 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
 - [x] Toolchain: **XDK** (Direct3D 9, XInput, XAudio2, XContent). Decidido en la sesión 5
       tras verificar que libxenon (free60) no tiene aceleración 3D en Xenos. Pendiente:
       fijar la versión exacta del SDK y actualizar `## Toolchain fijado` en `AGENTS.md`.
-- [ ] División de `xbox360-todo.md`: Opción 1, por subsistema (regla 16 de AGENTS.md).
+- [x] División de `xbox360-todo.md`: hub + 3 archivos (subsistemas 1-2, 3-4, 5-7).
 - [ ] Netplay: Revertir para `menu_g_b.c:57` y `:76`; Desactivar para el resto de bloques de netplay.
 - [ ] Definición de `#ifdef PORT` en la columna de mecanismo (la propone el agente en la sesión 1; aprobarla).
 - [ ] Clasificación del ensamblador inline de `src/sys/vu0_a_c.c`: marcar como **emulación en port/src**.
@@ -516,3 +516,37 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
     verificaciones pendientes: `sceCdSearchFile`, VIF1_STAT/GIF_STAT,
     tabla cruzada categoría×mecanismo, MCF_POLL; y la versión exacta
     del SDK del XDK).
+
+- **Sesión 12, 2026-10-11, opencode-go/kimi-k3**:
+  - División de `xbox360-todo.md` (regla 16 de AGENTS.md). El doc tenía
+    821 líneas tras la sesión 7; la sección 1 ("Llamadas a Hardware PS2
+    por Subsistema") ocupaba 414 líneas con 369 llamadas distribuidas en
+    7 subsistemas. La división sigue el plan original de PLAN.md sesión 1
+    (hub + 3 archivos: 1-2, 3-4, 5-7).
+  - Script reproducible: `docs/port/evidence/split_todo.py` (modo dry-run
+    por defecto; `--apply` para escribir). Antes de aplicar, verifiqué
+    que concatenando los rangos (14,82)+(83,250)+(251,427) se reconstruye
+    la sección 1 original (74937 chars) byte a byte. Tras aplicar,
+    verifiqué que cada "### Subsistema N" aparece exactamente 1 vez en
+    su sub-archivo y que el título de sección 1 aparece 4 veces (1 índice
+    en hub + 3 cabeceras).
+  - Estructura resultante:
+    - `xbox360-todo.md` (hub, 432 líneas): cabecera + resumen + índice a
+      los 3 sub-archivos + secciones 2 (`#ifdef PORT`), 3 (stubs de
+      `port/src/`), 4 (riesgos abiertos), 5 (conclusiones).
+    - `xbox360-todo-subsistemas-1-2.md` (82 líneas): subsistemas
+      Archivos/Memoria e Input.
+    - `xbox360-todo-subsistemas-3-4.md` (179 líneas): Renderer y Sonido.
+    - `xbox360-todo-subsistemas-5-7.md` (188 líneas): Memory Card,
+      Películas, Lógica restante.
+  - Todos los archivos quedan por debajo del límite de 500 líneas.
+  - Los enlaces relativos `../../src/...` y `../../port/...` siguen
+    válidos desde los 4 archivos (todos viven en `docs/port/`).
+  - Commit: `28cebbb` "fase 0: dividir xbox360-todo.md por subsistemas
+    (regla 16)" (5 archivos, 600 inserciones, 485 borrados).
+  - Cierre del pendiente "División de `xbox360-todo.md`" en "Decisiones
+    pendientes" de PLAN.md.
+  - `TODO` abiertos al cierre de la sesión: verificaciones pendientes
+    restantes (`sceCdSearchFile` enlace, VIF1_STAT/GIF_STAT
+    clasificación, tabla cruzada categoría×mecanismo, MCF_POLL) y la
+    versión exacta del SDK del XDK.
