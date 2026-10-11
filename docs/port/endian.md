@@ -170,9 +170,48 @@ Este subsistema interactúa con almacenamiento persistente. Los datos no solo se
 | [include/battle/hud_a.h](../../include/battle/hud_a.h) | 92-101 | `Hud`: `union { u32 flags; struct { u32 showGauges : 1; ... }; };` | Unión anónima de palabra completa con bitfield. `flags` se evalúa con máscaras `HUD_SHOW_*` (`1 << 0`), pero en PPC el bitfield empieza en el bit 31 (`1 << 31`). | **Lectura y Escritura** (memoria local) |
 | [include/battle/hud_c.h](../../include/battle/hud_c.h) | 17-23 | `HudCSprite`: `union { u32 flags; struct { u32 hidden : 1; u32 mirror : 1; }; };` | Idéntica incompatibilidad: las funciones leen `flags & HUDC_SPR_HIDDEN` mientras que los setters escriben `hidden = ...`. En PPC las máscaras no coinciden con los bits. | **Lectura y Escritura** (memoria local) |
 | [include/battle/hud_e.h](../../include/battle/hud_e.h) | 30-36 | `HudENode`: `union { u32 flags; struct { u32 hidden : 1; u32 mirror : 1; }; };` | Idéntica incompatibilidad entre máscara de `u32 flags` y bitfield. | **Lectura y Escritura** (memoria local) |
-| [src/sys/gfxm_a.c](../../src/sys/gfxm_a.c) | 68-83 | `GfxPostSpritePkt`: `struct { u64 x:16, y:16, z:24, f:8; } xyz0;` | Bitfield de 64 bits para paquete GS de post-procesado. En PPC Xenon los campos se invierten dentro del entero de 64 bits. | **Escritura** (DMA/GPU) |
-| [src/battle/eft_ad_b.c](../../src/battle/eft_ad_b.c) | 43-48 | `EftAdXyzf`: `u64 x:16, y:16, z:24, f:8;` | Registro de vértices GS empaquetado en bitfield de 64 bits. | **Escritura** (DMA/GPU) |
-| [src/battle/eft_d.c](../../src/battle/eft_d.c) | 83-94 | `EftPrim`: `u64 prim:3, iip:1, tme:1, ... pad:53;` | Registro GS PRIM mapeado mediante bitfield de 64 bits. | **Escritura** (DMA/GPU) |
+
+Los bitfields de 64 bits para **paquetes DMA a la GPU** (`GfxPostSpritePkt`,
+`EftAdXyzf`, `EftPrim`) **no son de disco** y se documentan por separado en la
+sección 3.12.
+
+### 3.12. Formatos de Paquetes Internos (Fuera de la Regla de Disco)
+
+Estos bitfields de 64 bits **no cumplen la Regla 2 de AGENTS.md**: no se leen de
+disco. Son **paquetes DMA que el juego escribe en memoria y envía a la GPU**
+(inicialmente al Graphics Synthesizer de PS2, en 360 a la GPU Xenos vía
+Direct3D 9). El bitfield se compila de forma distinta en PPC (bits asignados
+desde el MSB) y en x86 (desde el LSB), así que el mismo código C produce un
+layout de bits diferente. Como el destino es un **registro de hardware con un
+formato fijo e independiente del endianness del CPU** (el GPU decodifica el
+paquete por offset de bits, no por endianness), el cambio de layout en PPC
+rompe la interpretación del paquete por la GPU.
+
+| Archivo | Línea | Involucrado | Motivo / Riesgo en PowerPC Xenon | Tipo de Acceso |
+| :--- | :--- | :--- | :--- | :--- |
+| [src/sys/gfxm_a.c](../../src/sys/gfxm_a.c) | 68-83 | `GfxPostSpritePkt`: `struct { u64 x:16, y:16, z:24, f:8; } xyz0;` | Bitfield de 64 bits para paquete GS de post-procesado. En PPC Xenon el compilador asigna los campos desde el MSB (`x` en bits 63..48, `y` en 47..32, etc.); x86 los asigna desde el LSB (`x` en 15..0, etc.). El paquete en memoria tiene los campos en posiciones opuestas. | **Escritura** (DMA a la GPU) |
+| [src/battle/eft_ad_b.c](../../src/battle/eft_ad_b.c) | 43-48 | `EftAdXyzf`: `u64 x:16, y:16, z:24, f:8;` | Registro de vértices GS empaquetado en bitfield de 64 bits. Mismo problema de orden de bits. | **Escritura** (DMA a la GPU) |
+| [src/battle/eft_d.c](../../src/battle/eft_d.c) | 83-94 | `EftPrim`: `u64 prim:3, iip:1, tme:1, ... pad:53;` | Registro GS PRIM mapeado mediante bitfield de 64 bits. Mismo problema. | **Escritura** (DMA a la GPU) |
+
+**Estrategia de port**: no usar bitfields para construir registros de GPU
+destinados a DMA. En su lugar, construir el `u64` con shifts y ORs explícitos
+sobre una posición de bits fija, independiente del compilador. Por ejemplo,
+para `EftAdXyzf`:
+
+```c
+/* x en bits 0..15, y en 16..31, z en 32..55, f en 56..63 (orden del registro,
+   no del bitfield). Mismo orden de bits en PS2 (little-endian con bitfield
+   desde LSB) y PPC (re-escrito a mano). */
+static inline u64 EftAdXyzf_Pack(s32 x, s32 y, s32 z, u32 f) {
+    return ((u64)(x & 0xFFFF))
+         | ((u64)(y & 0xFFFF) << 16)
+         | ((u64)(z & 0xFFFFFF) << 32)
+         | ((u64)(f & 0xFF)     << 56);
+}
+```
+
+Mismo patrón se aplica a `GfxPostSpritePkt` y `EftPrim`. La capa de abstracción
+puede ofrecer un helper `GS_PackXYZF(x,y,z,f)` que reemplaza el bitfield.
 
 ---
 
@@ -293,3 +332,50 @@ static inline void WriteLE32(void *p, u32 v) {
        para `hidden` y `showGauges`). La conversión de bitfield a máscara es local
        a cada módulo y no requiere tocar disco (estos structs viven en memoria
        local, no en archivos).
+
+### 4.5. Formatos de Paquetes DMA a la GPU (Bitfields Internos)
+
+Aplica a las 3 entradas movidas a la sección 3.12 (`GfxPostSpritePkt`,
+`EftAdXyzf`, `EftPrim`). No usar bitfields para construir registros de GPU
+destinados a DMA; reemplazarlos por funciones `GS_Pack*` con shifts/ORs
+explícitos sobre posiciones de bits fijas (ver ejemplo de `EftAdXyzf_Pack` en
+3.12). Esto garantiza que el layout en memoria es el mismo en PS2, PC y Xbox
+360, y que la GPU decodifica el paquete correctamente.
+
+### 4.6. Verificación de Layout con `static_assert`
+
+Las siguientes structs tienen un tamaño binario crítico: se leen/escriben
+como bloques opacos desde/hacia disco o memory card, y cualquier cambio de
+tamaño o alineación rompe la compatibilidad. El build de host debe verificar
+estos tamaños en tiempo de compilación para detectar desviaciones:
+
+| Struct | Tamaño esperado | Header: línea / macro | Justificación |
+| :--- | :---: | :--- | :--- |
+| `TexEntry` | `0x40` | [include/sys/gfxm_b_b.h:28](../../include/sys/gfxm_b_b.h#L28) ("One texture of a texture file (0x40 bytes)") | Cabecera de texturas del juego (unidades, HUD, efectos): cada `TexEntry` se carga con offsets little-endian y se relocaliza in-situ. |
+| `SaveData` | `0x4000` | [include/sys/save.h:13](../../include/sys/save.h#L13) (`#define SAVE_SIZE 0x4000`); cierra en [include/sys/save.h:114](../../include/sys/save.h#L114) | Bloque de partida guardada: se copia byte a byte desde la memory card; el checksum `McCard_Checksum` recorre los `0x4000` bytes. Cambiar el tamaño rompe saves existentes. |
+| `McFlowReplayFile` | `0x1AC00` | [include/sys/mcflow_a.h:92](../../include/sys/mcflow_a.h#L92) ("size 0x1AC00") | Archivo de replay en memory card: se lee/escribe íntegro en `McFlow_UpdateReplayLoad` / `McFlow_UpdateReplaySave` con tamaño 0x1AC00. |
+
+**Implementación en el build de host** (verificable también en el build de
+360, donde el tamaño sigue siendo 64 bytes; la endianness no afecta al
+`sizeof`):
+
+```c
+#include <assert.h>
+#include "include/sys/gfxm_b_b.h"
+#include "include/sys/save.h"
+#include "include/sys/mcflow_a.h"
+
+static_assert(sizeof(TexEntry) == 0x40,
+              "TexEntry size changed: breaks texture file loading");
+static_assert(sizeof(SaveData) == SAVE_SIZE,
+              "SaveData size changed: breaks memory card save format");
+static_assert(sizeof(SaveData) == 0x4000,
+              "SaveData size changed: breaks memory card save format");
+static_assert(sizeof(McFlowReplayFile) == 0x1AC00,
+              "McFlowReplayFile size changed: breaks replay file format");
+```
+
+Estos `static_assert` se compilan en el build de host y también en el build
+de 360 (donde se vuelven a verificar en cada compilación cruzada). Si alguno
+falla, el port no debe proceder: indica que la struct ha cambiado y que los
+archivos en disco no serán compatibles.
