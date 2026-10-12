@@ -20,6 +20,10 @@ Toolchain decidido (sesión 5): **XDK** (Microsoft Xbox 360 SDK: Direct3D 9, XIn
 
 Nota de arquitectura: Xbox 360 es 32 bits nativo, por lo que la maquinaria de punteros del port de PC (`port/tools/ptr32.py`, mapeo bajo 4 GB de `port/src/plat_mem.c`) no es necesaria; las direcciones PS2 caben directas en el espacio plano de 32 bits. El trabajo se concentra en endianness big-endian y en la capa de plataforma.
 
+## Referencias externas
+
+- [XexUtils](https://github.com/ClementDreptin/XexUtils) (Clement Dréptin): utilidades para el formato XEX (ejecutables de Xbox 360) — información, extracción de XEXP y otros helpers. Útil para la fase 1 (configuración del build, empaquetado) y la fase 8 (instalación en RGH). Sugerido por el usuario en la sesión 14 de `PLAN.md`.
+
 ## Estados válidos (Regla 5)
 - **pendiente**: No iniciado.
 - **en curso**: En desarrollo o adaptación activa.

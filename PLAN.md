@@ -159,7 +159,8 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
       mapa de documentos. Si falta algo, reportarlo sin agregarlo.
 
 ## Pendientes de fase 1 (no empezar todavía)
-- [ ] Instalar el XDK (MSVC 2010 + Xbox 360 SDK) y fijar la versión exacta en `AGENTS.md`.
+- [x] Instalar el XDK (MSVC 2010 + Xbox 360 SDK) y fijar la versión exacta en `AGENTS.md`
+      (sesión 14: XDK 21256.3 + VS 2010 Pro, rutas en `AGENTS.md` `## Toolchain fijado`).
 - [ ] Crear `docs/port/xbox360-build.md` con los comandos reales de build, empaquetado y subida.
 - [x] Crear `docs/port/endian-schema.md` para `TexFile`/`TexEntry`, `ObjMdlFile` y `StgRelocHdr`.
 
@@ -585,3 +586,30 @@ No reverificar salvo que se pida. Cada hecho tiene su evidencia.
   - Cierre de 6 verificaciones pendientes en PLAN.md.
   - `TODO` abiertos al cierre de la sesión: solo queda la versión
     exacta del SDK del XDK (cuando la tengas).
+
+- **Sesión 14, 2026-10-11, opencode-go/kimi-k3**:
+  - Cierre de la fase 0. El usuario proporcionó:
+    - **XDK versión 21256.3** (última oficial del XDK 2010, Q4 2010).
+    - **Visual Studio 2010 Professional** (EN-US).
+    - **Rutas de instalación** (verificadas con `Test-Path`):
+      - XDK: `C:\Program Files (x86)\Microsoft Xbox 360 SDK` (existe,
+        contiene `art`, `bin`, `doc`, `include`, `lib`, `redist`,
+        `Source`, `system`, `TechPreview`, `xboxfont`, `readme1st.txt`).
+      - Visual Studio: `C:\Program Files (x86)\Microsoft Visual Studio 10.0`
+        (existe, contiene la carpeta `Microsoft Visual Studio 2010
+        Professional - ENU`).
+  - Cambios en `AGENTS.md`:
+    - Criterio de salida de la fase 0: actualizada la redacción para
+      reflejar que la versión y rutas están fijadas.
+    - Sección `## Toolchain fijado`: nombre XDK, versión **21256.3**,
+      IDE VS 2010 Pro, rutas exactas con subcarpetas clave.
+  - Cambios en `docs/port/xbox360-status.md`: nueva subsección
+    "Referencias externas" que documenta el repo
+    [XexUtils](https://github.com/ClementDreptin/XexUtils) sugerido por
+    el usuario. Útil para fase 1 (build/empaquetado) y fase 8
+    (instalación en RGH).
+  - Cambios en `PLAN.md`: cierre del pendiente de "fijar la versión
+    exacta del SDK" en "Pendientes de fase 1". Nueva entrada de sesión 14.
+  - Estado de la rama `docs/fase0-correcciones`: 14 commits desde la
+    sesión 5. Todos los criterios de salida de la fase 0 de `AGENTS.md`
+    cumplidos.

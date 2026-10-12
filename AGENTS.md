@@ -8,9 +8,8 @@ Las tareas permitidas son solo de análisis, documentación y preparación:
 - Escribir tests en el host que no requieran hardware.
 - Preparar documentos en `docs/port/`.
 Criterios de salida de la fase 0 (todos deben cumplirse):
-- Toolchain elegido: XDK (Microsoft Xbox 360 SDK), con nombre y versión fijados en la
-  sección ## Toolchain fijado. La versión exacta del SDK queda como pendiente de la
-  fase 1 (ver `PLAN.md`, "Pendientes de fase 1"). Elegirlo no implica instalarlo ni
+- Toolchain elegido: XDK (Microsoft Xbox 360 SDK), con nombre, versión y rutas
+  fijados en la sección ## Toolchain fijado. Elegirlo no implica instalarlo ni
   compilar con él durante la fase 0.
 - Política de endianness aprobada en docs/port/endian.md, sin TODO(decidir) abiertos.
 - Ningún veredicto “Revisar caso por caso” abierto en el inventario.
@@ -51,8 +50,19 @@ La capa de plataforma de PC está en `port/` y debe reemplazarse por una de 360.
 
 ## Toolchain fijado
 - Nombre: XDK (Microsoft Xbox 360 SDK)
-- Versión o commit: <pendiente de fijar; ver "Pendientes de fase 1" en `PLAN.md`>
-- Estado: no instalado. La instalación es tarea de la fase 1.
+- Versión: **21256.3** (última oficial del XDK 2010, Q4 2010).
+- IDE: **Microsoft Visual Studio 2010 Professional** (EN-US).
+- Rutas de instalación (en este host, sesión 14):
+  - XDK: `C:\Program Files (x86)\Microsoft Xbox 360 SDK`
+    - Subcarpetas clave: `bin\win32`, `bin\x64`, `bin\xbox`, `include`, `lib`,
+      `redist`. El path de include y lib para el target `xbox` se añade
+      automáticamente al proyecto de Visual Studio al configurar las
+      propiedades del proyecto Xbox 360.
+  - Visual Studio: `C:\Program Files (x86)\Microsoft Visual Studio 10.0`
+    - Subcarpetas clave: `Common7\IDE` (devenv.exe), `VC\bin`, `VC\include`,
+      `VC\lib`, `VC\vcpackages` (proyecto de Xbox 360).
+- Estado: instalado. La configuración del proyecto de Xbox 360 en VS 2010
+  (plataforma `xbox`, propiedades del proyecto) es tarea de la fase 1.
 - Decidido en la sesión 5 de `PLAN.md`. Justificación: libxenon (free60) no tiene
   aceleración 2D/3D en la GPU Xenos (verificado en free60.org); el homebrew 3D de
   Xbox 360, incluido este port, usa el XDK para tener Direct3D 9, XInput, XAudio2 y
