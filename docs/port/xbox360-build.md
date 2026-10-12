@@ -656,6 +656,61 @@ poder cargar el overlay DBZP.BIN, que en Xbox 360 vendra del
 sistema de archivos real; los stubs de fase 1 solo necesitan
 demostrar que la cadena hasta `Gfx_Init` se ejecuta.)
 
+### 8.5. Validacion runtime en xenia
+
+Captura real del XEX corriendo en `xenia-canary` con flag verbose
+(sesion 14, ya borrada del disco por seguridad). Comandos
+exactos que la generaron:
+
+```bat
+xenia-canary.exe --log_level=3 --log_file=stdout BT3.xex
+```
+
+Con `--log_level=3` xenia traza cada `RtlInitAnsiString` que la
+RTL usa para preparar los strings de `OutputDebugStringA`
+(via `DbgPrint`). Esos `RtlInitAnsiString` llevan como segundo
+argumento la cadena literal del log, asi que aparecen
+verbatim en el log de xenia. La traza que se vio, en orden
+de ejecucion:
+
+```text
+Xbr_Init: port platform ready (XDK 21256.3, PowerPC Xenon, big-endian)
+TODO(xbox360): sceSifRebootIop stub (fase 2+, subsistema 1)
+TODO(xbox360): sceFsReset stub (fase 2+, subsistema 1 archivos)
+TODO(xbox360): GetThreadId stub (fase 2+, subsistema 2 input)
+Xbr_Log: Sys_InitIopHeap stub (subsistema 1 archivos)
+Xbr_Log: Heap_Init stub (subsistema 1 archivos)
+=== GFX_INIT reached ===                    <-- TARGET FASE 1
+Xbr_Log: Gfx_Init stub (subsistema 3 renderer)
+Xbr_Log: Snd_Init stub (subsistema 4 sonido)
+Xbr_Log: File_Init stub (subsistema 1 archivos)
+Xbr_Log: Movie_Init stub (subsistema 6 peliculas)
+Xbr_Log: Common_Init stub (subsistema 7 logica)
+Xbr_Log: Progress_Init stub (subsistema 7)
+Xbr_Log: Save_Init stub (subsistema 5 memory card)
+Xbr_Log: Job_Init stub (subsistema 7)
+Xbr_Log: Vu0_Init stub (subsistema 7; VU0 no existe en Xbox 360)
+Xbr_Log: Dma_InitBuffers stub (subsistema 7; DMA directo del PS2 no aplica)
+Xbr_Log: Dbg_Init stub (subsistema 7)
+Xbr_Log: Pad_Init stub (subsistema 2 input)
+Xbr_Log: McCard_Init stub (subsistema 5 memory card)
+Xbr_Log: Font_Init(1) stub (subsistema 1 archivos)
+Xbr_Log: FontIcon_Init stub (subsistema 1)
+Xbr_Log: Fade_Init stub (subsistema 7)
+Xbr_Log: PadWatch_Init stub (subsistema 7)
+[hang en Overlay_Load(0): sceOpen devuelve -1, xenia -> Cheap-skate exit]
+```
+
+Resultado:
+- El lazy init de `Xbr_Init` corre en la primera `sceSifInitRpc`.
+- Los 19 Init_ del juego pasan en el orden de `Game_Main`.
+- `=== GFX_INIT reached ===` aparece en la posicion esperada
+  (septima traza, justo despues de Heap_Init).
+- El bucle final cuelga como estaba previsto.
+- xenia termina el titulo con "Cheap-skate exit" (no es un fallo
+  del XEX: nuestro `Game_Main` no retorna nunca; xenia mata el
+  hilo principal al detectar que la ejecucion no avanza).
+
 ---
 
 ## 9. Archivos — sceOpen/Lseek/Read/Close (subtarea 2.1)
@@ -926,58 +981,3 @@ Verificaciones implicitas:
   `Heap_Alloc` y `Heap_Free` (las funciones reales en
   `src/sys/heap.c` que ahora tienen donde trabajar) no
   corrompen el heap.
-
-### 8.5. Validacion runtime en xenia
-
-Captura real del XEX corriendo en `xenia-canary` con flag verbose
-(sesion 14, ya borrada del disco por seguridad). Comandos
-exactos que la generaron:
-
-```bat
-xenia-canary.exe --log_level=3 --log_file=stdout BT3.xex
-```
-
-Con `--log_level=3` xenia traza cada `RtlInitAnsiString` que la
-RTL usa para preparar los strings de `OutputDebugStringA`
-(via `DbgPrint`). Esos `RtlInitAnsiString` llevan como segundo
-argumento la cadena literal del log, asi que aparecen
-verbatim en el log de xenia. La traza que se vio, en orden
-de ejecucion:
-
-```text
-Xbr_Init: port platform ready (XDK 21256.3, PowerPC Xenon, big-endian)
-TODO(xbox360): sceSifRebootIop stub (fase 2+, subsistema 1)
-TODO(xbox360): sceFsReset stub (fase 2+, subsistema 1 archivos)
-TODO(xbox360): GetThreadId stub (fase 2+, subsistema 2 input)
-Xbr_Log: Sys_InitIopHeap stub (subsistema 1 archivos)
-Xbr_Log: Heap_Init stub (subsistema 1 archivos)
-=== GFX_INIT reached ===                    <-- TARGET FASE 1
-Xbr_Log: Gfx_Init stub (subsistema 3 renderer)
-Xbr_Log: Snd_Init stub (subsistema 4 sonido)
-Xbr_Log: File_Init stub (subsistema 1 archivos)
-Xbr_Log: Movie_Init stub (subsistema 6 peliculas)
-Xbr_Log: Common_Init stub (subsistema 7 logica)
-Xbr_Log: Progress_Init stub (subsistema 7)
-Xbr_Log: Save_Init stub (subsistema 5 memory card)
-Xbr_Log: Job_Init stub (subsistema 7)
-Xbr_Log: Vu0_Init stub (subsistema 7; VU0 no existe en Xbox 360)
-Xbr_Log: Dma_InitBuffers stub (subsistema 7; DMA directo del PS2 no aplica)
-Xbr_Log: Dbg_Init stub (subsistema 7)
-Xbr_Log: Pad_Init stub (subsistema 2 input)
-Xbr_Log: McCard_Init stub (subsistema 5 memory card)
-Xbr_Log: Font_Init(1) stub (subsistema 1 archivos)
-Xbr_Log: FontIcon_Init stub (subsistema 1)
-Xbr_Log: Fade_Init stub (subsistema 7)
-Xbr_Log: PadWatch_Init stub (subsistema 7)
-[hang en Overlay_Load(0): sceOpen devuelve -1, xenia -> Cheap-skate exit]
-```
-
-Resultado:
-- El lazy init de `Xbr_Init` corre en la primera `sceSifInitRpc`.
-- Los 19 Init_ del juego pasan en el orden de `Game_Main`.
-- `=== GFX_INIT reached ===` aparece en la posicion esperada
-  (septima traza, justo despues de Heap_Init).
-- El bucle final cuelga como estaba previsto.
-- xenia termina el titulo con "Cheap-skate exit" (no es un fallo
-  del XEX: nuestro `Game_Main` no retorna nunca; xenia mata el
-  hilo principal al detectar que la ejecucion no avanza).
