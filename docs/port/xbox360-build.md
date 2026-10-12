@@ -156,7 +156,7 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.1 toolchain | ver seccion 3 | XEX valido de smoke test | compila |
 | 1.2 proyecto | ver seccion 5 | `.xex` con `_XBOX` definido y entry point en `0x820103A8` | compila |
 | 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
-| 1.4 main.c + bootstrap | idem 1.2 | `.xex` que contiene `main` y los stubs de `Game_Main` | pendiente |
+| 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
 | 1.5 verificacion final | `imagexex /DUMP` + log de ejecucion | entrada en `Gfx_Init` antes de cuelgue | pendiente |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
@@ -375,3 +375,150 @@ campos. Configuracion funcional.
   COFF). Cuando en 1.4 se anada `src/main.c` y se referencien los
   sce*, el link fallara explicitamente si falta alguno, asi que ese
   sera el test definitivo.
+
+---
+
+## 7. Compilacion de main.c y stubs del juego (subtarea 1.4)
+
+Archivos nuevos / modificados:
+
+- `port/include/xbox360/xbr_compat.h` (nuevo) — shim de compat para que el
+  codigo decompilado de `src/` (que incluye `include_asm.h` con asm GCC)
+  compile bajo MSVC. Declara `INCLUDE_ASM_H` para saltarse la cabecera de
+  asm, anula los macros `INCLUDE_ASM/INCLUDE_RODATA/RODATA_ALIGN16/...`
+  y define `__attribute__(...)` como vacio para que las directivas GCC de
+  los headers (`__attribute__((aligned(N)))`, `__attribute__((mode(TI)))`)
+  no rompan la compilacion.
+- `port/src/xbox360/xbr_stubs_sce.c` (modificado) — anade `xbr_lazy_init()`
+  que se llama en `sceSifInitRpc` (la primera llamada sce* que hace
+  `Game_Main::Sys_RebootIop`). Asi, en la subtarea 1.4, `main()` ya viene
+  de `src/main.c` y aun asi `Xbr_Init()` se ejecuta antes de cualquier
+  codigo del juego.
+- `port/src/xbox360/xbr_stubs_game.c` (nuevo, 230 lineas) — stubs no-op
+  (con log a la primera llamada) para los 19 simbolos que `src/main.c`
+  referencia y el decompilador aun no tiene portados. Lista completa:
+  - Init de Game_Main: `Sys_InitIopHeap`, `Heap_Init`, **`Gfx_Init`**
+    (TARGET: emite `"=== GFX_INIT reached ==="` y luego la traza
+    generica), `Snd_Init`, `File_Init`, `Movie_Init`, `Common_Init`,
+    `Common_LoadBoot`, `Common_Reload`, `Progress_Init`, `Save_Init`,
+    `Job_Init`, `Vu0_Init`, `Dma_InitBuffers`, `Dbg_Init`, `Pad_Init`,
+    `McCard_Init`, `Font_Init`, `FontIcon_Init`, `Fade_Init`,
+    `PadWatch_Init`.
+  - Bucle final: `Progress_Main`, `Battle_Main`.
+  - Auxiliar (de `src/main.c::View_ApplyScissor`): `Dma_AddScissor`.
+  - Datos: `gOverlayTbl[1]`, `MainMenu_StartBallLoops[0x100000]`.
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado):
+  - Anade `src/main.c` (3 niveles arriba del .vcxproj).
+  - Anade `xbr_stubs_game.c`.
+  - Quita `xbr_main.c` (su responsabilidad la asume el lazy init de
+    `xbr_stubs_sce.c`).
+  - `<CompileAs>CompileAsC</CompileAs>` global — el toolset de Xbox 360
+    pone `CompileAs=CompileAsCpp` por defecto; sin esto, el compilador usa
+    name mangling C++ y los simbolos no se cruzan con los prototipos
+    `extern` de `src/main.c`.
+  - `<ForcedIncludeFiles>xbox360/xbr_compat.h</ForcedIncludeFiles>` en el
+    ItemDefinitionGroup de ClCompile.
+- `port/build/xbox360/BT3.props` (sin cambios, los IncludePath ya tenian
+  `port/include/xbox360` y la raiz `include/` del juego).
+
+### 7.1. Verificacion
+
+Mismo comando de la seccion 5.1. Resultado (Release, rebuild limpio):
+
+```text
+ClCompile:
+  CL.exe /c /D XBOX360 /D _XBOX /FI"xbr_compat.h" ... /TP
+       src\main.c
+       port\src\xbox360\xbr_platform.c
+       port\src\xbox360\xbr_stubs_sce.c
+       port\src\xbox360\xbr_stubs_game.c
+  main.c
+  xbr_platform.c
+  xbr_stubs_sce.c
+  xbr_stubs_game.c
+Link:
+  link.exe /OUT:bin\Release\BT3.exe
+           obj\Release\main.obj
+           obj\Release\xbr_platform.obj
+           obj\Release\xbr_stubs_sce.obj
+           obj\Release\xbr_stubs_game.obj /XEX:NO
+ImageXex:
+  imagexex.exe /out:bin\Release\BT3.xex bin\Release\BT3.exe
+
+Compilacion correcta. 0 Advertencia(s) 0 Errores.
+```
+
+`imagexex /DUMP BT3.xex` (Release):
+
+```text
+   82000000 load address
+     130000 image size
+   FFFFFFFF game region
+   82014A68 entry point
+              title module / 64KB pages
+              North America / Japan / China / rest of Asia / Australia/N Zealand / rest of Europe / rest of world
+              hard disk / DVD/CD / SMB filesystem / direct-from-RAM / Live-signed package
+   NOT-COMPRESSED, ENCRYPTED
+```
+
+`Debug` produce `BT3.xex` de 233472 bytes (0x39000) con los mismos
+load address y entry region; resto de campos coinciden.
+
+### 7.2. Verificacion de que los logs del camino a Gfx_Init estan en el XEX
+
+`grep` ASCII sobre `bin\Release\BT3.exe` (las cadenas son literales
+del .text del PE; aparecen en el .xex tras la conversion de
+imagexex):
+
+```text
+FOUND  Xbr_Init: port platform ready       @ 49088   (Xbr_Init, lazy)
+FOUND  sceSifRebootIop                     @ 49307   (stub Sony)
+FOUND  Xbr_Log: Sys_InitIopHeap stub       @ 49412   (subsistema 1)
+FOUND  Xbr_Log: Heap_Init stub             @ 49468   (subsistema 1)
+FOUND  === GFX_INIT reached ===            @ 49520   (TARGET)
+FOUND  Xbr_Log: Gfx_Init stub              @ 49548   (subsistema 3)
+FOUND  Xbr_Log: Snd_Init stub              @ 49596   (subsistema 4)
+FOUND  Xbr_Log: File_Init stub             @ 49644   (subsistema 1)
+FOUND  Xbr_Log: Movie_Init stub            @ 49696   (subsistema 6)
+FOUND  Xbr_Log: Common_Init stub           @ 49748   (subsistema 7)
+FOUND  Xbr_Log: Progress_Init stub         @ 49892   (subsistema 7)
+FOUND  Xbr_Log: Save_Init stub             @ 49936   (subsistema 5)
+FOUND  Xbr_Log: Pad_Init stub              @ 50224   (subsistema 2)
+FOUND  Xbr_Log: McCard_Init stub           @ 50272   (subsistema 5)
+```
+
+Las 14 trazas estan dentro del PE/XEX. Cuando se ejecute el XEX en
+un emulador o devkit (subtarea 1.5), `OutputDebugStringA` las
+imprimira en el mismo orden en que `Game_Main` las invoca.
+
+### 7.3. Hallazgos durante 1.4
+
+- **El toolset de Xbox 360 compila por defecto como C++** (name mangling
+  C++). Sin `<CompileAs>CompileAsC</CompileAs>` en el .vcxproj, los
+  prototipos `extern` de `src/main.c` se manglan a `?Battle_Main@@YAXH@Z`
+  y los stubs de `port/src/xbox360/` a nombres sin mangling, asi que el
+  linker reporta "unresolved external" aunque la funcion exista. Hay
+  que forzar C en el ItemDefinitionGroup.
+- **`__attribute__` de GCC no existe en MSVC.** Muy usado en los headers
+  de batalla (vectores alineados a 16) y en `sys/dma.h` (tipos `s128`/
+  `u128` con `mode(TI)`). Solucion adoptada: `#define __attribute__(...)`
+  como vacio en `xbr_compat.h`. Se pierde la alineacion estricta, pero
+  main.c no la necesita (ningun struct vectorial en su camino); las
+  fases 3-7 daran el salto a `__declspec(align(N))` o a un atributo
+  propio de la capa de plataforma.
+- **MSVC 2010 C es C89 por defecto** (no permite declaraciones
+  mezcladas con sentencias). Varios stubs usan `static int logged;`
+  dentro de la funcion como flag de "ya logueado". Hay que poner esa
+  declaracion al principio del bloque. C99 / C11 no estan soportados
+  como `-std=` en MSVC 2010.
+- **`u8`/`s8`/etc. no son tipos del XDK.** Son los del juego
+  (`include/types.h`). Si un .c nuestro los necesita, debe incluir
+  `common.h` (que arrastra types.h) o usar los tipos C nativos
+  (`unsigned char` para `u8`, etc.). En `xbr_stubs_game.c` se opto
+  por `unsigned char` para `MainMenu_StartBallLoops` por limpieza.
+- **`main()` solo puede estar definido una vez.** Al aniadir
+  `src/main.c` se quito `port/src/xbox360/xbr_main.c`; el
+  `Xbr_Init()` que este ultimo llamaba se traslado a un "lazy init"
+  en `xbr_stubs_sce.c` (primera llamada a `sceSifInitRpc` desde
+  `Game_Main::Sys_RebootIop`). Asi, `Xbr_Init` se ejecuta una vez,
+  justo antes de que el juego toque la capa de plataforma.

@@ -23,6 +23,22 @@
 #include <xtl.h>
 
 /* --------------------------------------------------------------------------
+ * Lazy init: en la subtarea 1.4 main() pasa a venir de src/main.c, asi que
+ * no podemos llamar a Xbr_Init() desde un punto fijo. La primera llamada
+ * a un sce* dentro de Game_Main::Sys_RebootIop es sceSifInitRpc(0); a partir
+ * de ahi, cada stub del archivo puede pedir la inicializacion con
+ * xbr_lazy_init() y queda ordenada. Asi Xbr_Init() corre exactamente una vez,
+ * antes de que el juego toque nada de la capa de plataforma.
+ * -------------------------------------------------------------------------- */
+static int sXbrInited = 0;
+static void xbr_lazy_init(void) {
+    if (!sXbrInited) {
+        sXbrInited = 1;
+        Xbr_Init();
+    }
+}
+
+/* --------------------------------------------------------------------------
  * Libkernl: hilos, prioridad y FlushCache
  * -------------------------------------------------------------------------- */
 
@@ -84,17 +100,20 @@ int sceCdMmode(int media) {
 }
 
 /* XBOX360: SIF (SubCPU Interface) era el bus entre EE e IOP. En Xbox 360 no
- * existe ese modelo. Stub. */
+ * existe ese modelo. Stub. Esta es la PRIMERA llamada sce* que hace
+ * Game_Main (Sys_RebootIop linea 86 de src/main.c), asi que aprovechamos
+ * para inicializar la capa de plataforma via lazy init. */
 void sceSifInitRpc(unsigned int mode) {
     (void)mode;
+    xbr_lazy_init();
 }
 
 /* XBOX360: src/main.c::Sys_RebootIop espera a que termine el reboot del IOP
  * (while(!sceSifRebootIop(...))). Devolvemos 1 (exito) en la primera llamada
  * para no colgar. */
 int sceSifRebootIop(char *img) {
-    (void)img;
     static int logged;
+    (void)img;
     if (!logged) {
         Xbr_Log("TODO(xbox360): sceSifRebootIop stub (fase 2+, subsistema 1)\n");
         logged = 1;

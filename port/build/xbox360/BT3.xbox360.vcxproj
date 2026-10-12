@@ -54,6 +54,12 @@
        ===================================================================== -->
   <ItemDefinitionGroup>
     <ClCompile>
+      <!-- Forzamos C (no C++) para todos los .c: el toolset de Xbox 360 pone
+           CompileAs=CompileAsCpp por defecto, pero los .c del juego (src/*.c)
+           y de los stubs (port/src/xbox360/*.c) son C puro. Sin esto, el
+           compilador usa name mangling C++ y los simbolos no se cruzan con
+           los prototipos `extern` de src/main.c. -->
+      <CompileAs>CompileAsC</CompileAs>
       <!-- Warning level 3, multi-procesador desactivado (toolset por defecto).
            _XBOX lo anade el .Title.props de la plataforma Xbox 360. -->
       <WarningLevel>Level3</WarningLevel>
@@ -61,6 +67,10 @@
            redundante en modo Release pero inocuo, y deja el proyecto portable si el toolset
            no se actualiza. -->
       <PreprocessorDefinitions>XBOX360;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Forzamos tambien el shim de compat del port Xbox 360 (xbr_compat.h) para
+           que el codigo decompilado en src/ (que incluye include_asm.h) compile
+           con MSVC. El path es relativo a port/include (ver IncludePath en BT3.props). -->
+      <ForcedIncludeFiles>xbox360/xbr_compat.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <DebugInformationFormat Condition="'$(Configuration)' == 'Debug'">ProgramDatabase</DebugInformationFormat>
       <Optimization Condition="'$(Configuration)' == 'Debug'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)' == 'Release'">MaxSpeed</Optimization>
@@ -102,19 +112,22 @@
 
   <!-- =====================================================================
        Fuentes
-       Por ahora el entry point (xbr_main.c), la capa de plataforma
-       (xbr_platform.c) y los stubs PS2 -> XDK (xbr_stubs_sce.c). Las
-       subtareas 1.4+ iran anadiendo los stubs de los subsistemas 1-7 y,
-       al final, src/main.c y los .c del juego.
+       En la subtarea 1.4 main() pasa a venir de src/main.c (el entry point
+       del juego). xbr_main.c ya no se compila; su responsabilidad
+       (inicializar la capa de plataforma antes de Game_Main) la cubre el
+       "lazy init" que xbr_stubs_sce.c hace en la primera llamada a sce*.
        ===================================================================== -->
   <ItemGroup>
-    <ClCompile Include="..\..\src\xbox360\xbr_main.c">
+    <ClCompile Include="..\..\..\src\main.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\src\xbox360\xbr_platform.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\src\xbox360\xbr_stubs_sce.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\src\xbox360\xbr_stubs_game.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
