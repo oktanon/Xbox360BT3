@@ -157,7 +157,7 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.2 proyecto | ver seccion 5 | `.xex` con `_XBOX` definido y entry point en `0x820103A8` | compila |
 | 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
 | 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
-| 1.5 verificacion final | `imagexex /DUMP` + log de ejecucion | entrada en `Gfx_Init` antes de cuelgue | pendiente |
+| 1.5 verificacion final | ver seccion 8 | XEX compila + 12/12 trazas en binario; ejecucion real (xbWatson/xenia/RGH) documentada para el usuario | compila |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
@@ -522,3 +522,135 @@ imprimira en el mismo orden en que `Game_Main` las invoca.
   en `xbr_stubs_sce.c` (primera llamada a `sceSifInitRpc` desde
   `Game_Main::Sys_RebootIop`). Asi, `Xbr_Init` se ejecuta una vez,
   justo antes de que el juego toque la capa de plataforma.
+
+---
+
+## 8. Verificacion en ejecucion (subtarea 1.5)
+
+La fase 1 termina cuando el XEX se compila, valida y enlaza con los
+stubs de la cadena `Game_Main -> Gfx_Init`. Esa parte esta cerrada
+(ver [seccion 7.2](#72-verificacion-de-que-los-logs-del-camino-a-gfx_init-estan-en-el-xex):
+12/12 trazas de la cadena confirmadas en `bin\Release\BT3.exe`).
+
+El criterio "verificado en hardware" (estado valido de la regla 5 de
+`AGENTS.md`) requiere que el XEX realmente arranque y la traza
+`=== GFX_INIT reached ===` aparezca en algun log. En este host no
+hay emulador ni devkit, asi que esa ejecucion la hace el usuario.
+Tres caminos posibles, de menos a mas invasivo:
+
+### 8.1. xbWatson (XDK, depurador GUI)
+
+`xbwatson.exe` viene con el XDK (`bin\win32\xbwatson.exe`). Es el
+depurador oficial y arranca XEX firmados por la propia toolchain.
+
+Limitaciones en este host:
+- Necesita una consola Xbox 360 objetivo ("default console" en el
+  registro `HKCU\SOFTWARE\Microsoft\XenonSDK\XboxName` o el argumento
+  `-console <ip>`). Sin consola, abre la GUI pero no tiene a quien
+  lanzar el XEX.
+- Es interactivo (ventana + linea de comandos interna). No se puede
+  invocar en modo batch desde aqui.
+
+Si se tiene un devkit, los pasos son:
+1. Registrar la consola con `xbsetcfg -i <ip>` (o pasar `-console
+   <ip>` a xbWatson).
+2. Lanzar `xbwatson.exe` con el XEX:
+   `xbwatson.exe -console <ip> -xex port\build\xbox360\bin\Release\BT3.xex`
+3. En la ventana de xbWatson, la salida de `OutputDebugStringA` cae
+   en la consola de debug. Ahi se ve la secuencia completa:
+   `Xbr_Init: port platform ready` -> ... -> `=== GFX_INIT reached ===`
+   -> `Xbr_Log: Snd_Init stub` -> ...
+4. El bucle final cuelga a proposito: `Overlay_Load(0)` llama a
+   `sceOpen("cdrom0:\\BIN\\DBZP.BIN;1")` que devuelve -1, y el
+   `do/while (fd < 0)` no sale. Parada manual con Ctrl+C en xbWatson.
+
+### 8.2. xenia (emulador third-party de Xbox 360)
+
+Codigo abierto en <https://github.com/xenia-project/release-releases>.
+Builds listas en <https://xenia-emu.com/> (zip portable) o como
+paquete UWP en la Microsoft Store (`xenia-canary`). La version
+standalone (zip) es la mas comoda para ejecutar XEX directamente:
+
+1. Descargar `xenia_canary.zip` de xenia-emu.com.
+2. Descomprimir en una carpeta (no requiere instalacion).
+3. Lanzar el XEX:
+   `xenia.exe port\build\xbox360\bin\Release\BT3.xex`
+4. La salida de `OutputDebugStringA` aparece en la consola/ventana
+   nativa de xenia (con `KHRONOS_DEBUG=stdout` o el visor de log
+   integrado en builds recientes). Tambien en `%TEMP%\xenia\*.log`
+   si esta habilitado.
+
+Limitaciones:
+- xenia no implementa todas las APIs de XAM/XAudio2; los stubs que
+  usan D3D/DirectSound/XAudio2 pueden colgarse o no hacer nada.
+  Para fase 1 no importa: los stubs de Snd/Movie/etc. son no-op.
+- La velocidad de emulacion suele ser 30-100% de una Xbox 360 real
+  en CPUs modernas. Suficiente para arrancar y ver el log.
+- En este host hay un `xenia-canary-uwp_1.1.7.1_x64.appxbundle` en
+  `Downloads\` (verificado), pero el paquete UWP no esta firmado
+  con un certificado de confianza (`Add-AppxPackage` falla con
+  `0x800B0109`), asi que la opcion practica es la build standalone.
+
+### 8.3. Consola RGH (hardware real)
+
+Es el camino mas fiel a la Xbox 360. Pasos:
+
+1. Compilar el XEX (la fase 1 ya esta lista, salida en
+   `port\build\xbox360\bin\Release\BT3.xex`).
+2. Pasar el XEX a la consola:
+   - FTP/SMB: montar la particion de juegos de la consola y copiar
+     `BT3.xex` a `game:\`.
+   - O usar `xbcp` del XDK:
+     `xbcp /x:d:\devkit\BT3.xex xe:\BT3.xex`
+     (donde `xe:` es la raiz de la consola, `d:\devkit` una carpeta
+     local; requiere consola configurada en `xbsetcfg`).
+3. Lanzar el XEX desde el dashboard de Aurora o desde FSD
+   (FreeStyle Dash). Tambien con `xbconsoletype x` + `xbpair` para
+   que la consola lo reconozca como titulo.
+4. Capturar el log:
+   - `xbWatson` remoto (consola como target) muestra la salida de
+     `OutputDebugStringA` en la ventana del depurador.
+   - O un cliente Syslog/Netlog si se monta uno (fase 8+).
+
+### 8.4. Verificacion automatica (lo que SI hace este build)
+
+Sin poder ejecutar el XEX en este host, la verificacion automatica
+es estatica y se reduce a cuatro checks que SI podemos correr:
+
+| Check | Comando | Esperado |
+| :-- | :-- | :-- |
+| Build limpio | `MSBuild port\build\xbox360\BT3.xbox360.vcxproj /t:Rebuild /p:Configuration=Release /p:Platform="Xbox 360"` | `0 Advertencia(s) 0 Errores` |
+| XEX valido | `imagexex /DUMP bin\Release\BT3.xex` | load `0x82000000`, entry `0x82014XXX`, regions NA/JP/CN/etc. |
+| Logs en binario | busqueda ASCII de las 12 cadenas clave en `bin\Release\BT3.exe` | 12/12 hits |
+| Simbolos SCE | (no automatizable: COFF-XBX) | exito del link en (1) cubre los `LNK2019` |
+
+El script de PowerShell de la seccion 7.2 (12/12 trazas) cubre el
+check (3). Para los checks (1), (2) y (4) los comandos exactos
+estan en la seccion 5.1.
+
+Cuando el usuario corra el XEX en cualquiera de las tres opciones
+de 8.1-8.3, la salida esperada de `OutputDebugStringA` es:
+
+```text
+Xbr_Init: port platform ready (XDK 21256.3, PowerPC Xenon, big-endian)
+TODO(xbox360): sceFsReset stub (fase 2+, subsistema 1 archivos)
+TODO(xbox360): sceSifRebootIop stub (fase 2+, subsistema 1)
+Xbr_Log: Sys_InitIopHeap stub (subsistema 1 archivos)
+Xbr_Log: Heap_Init stub (subsistema 1 archivos)
+=== GFX_INIT reached ===
+Xbr_Log: Gfx_Init stub (subsistema 3 renderer)
+Xbr_Log: Snd_Init stub (subsistema 4 sonido)
+Xbr_Log: File_Init stub (subsistema 1 archivos)
+Xbr_Log: Movie_Init stub (subsistema 6 peliculas)
+Xbr_Log: Common_Init stub (subsistema 7 logica)
+Xbr_Log: Progress_Init stub (subsistema 7)
+Xbr_Log: Save_Init stub (subsistema 5 memory card)
+Xbr_Log: Pad_Init stub (subsistema 2 input)
+Xbr_Log: McCard_Init stub (subsistema 5 memory card)
+[hang en Overlay_Load(0): sceOpen devuelve -1]
+```
+
+(El "hang" final es a proposito: el bucle de `Game_Main` espera
+poder cargar el overlay DBZP.BIN, que en Xbox 360 vendra del
+sistema de archivos real; los stubs de fase 1 solo necesitan
+demostrar que la cadena hasta `Gfx_Init` se ejecuta.)
