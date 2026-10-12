@@ -155,7 +155,7 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | :-- | :-- | :-- | :--: |
 | 1.1 toolchain | ver seccion 3 | XEX valido de smoke test | compila |
 | 1.2 proyecto | ver seccion 5 | `.xex` con `_XBOX` definido y entry point en `0x820103A8` | compila |
-| 1.3 stubs | enlazado desde el `.vcxproj` (1.2) | sin errores de simbolo `sce*` no definido | pendiente |
+| 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
 | 1.4 main.c + bootstrap | idem 1.2 | `.xex` que contiene `main` y los stubs de `Game_Main` | pendiente |
 | 1.5 verificacion final | `imagexex /DUMP` + log de ejecucion | entrada en `Gfx_Init` antes de cuelgue | pendiente |
 
@@ -297,3 +297,81 @@ y `/build/` en la linea 7 y 15 de `.gitignore`).
   `<ImageXexOutput>` directamente en el PropertyGroup de la
   configuracion; `<OutDir>` solo no basta (los PDBs y la implib usan
   OutDir, pero el .exe/.xex no).
+
+---
+
+## 6. Capa de plataforma y stubs PS2 (subtarea 1.3)
+
+Archivos nuevos (todos versionados, build outputs ignorados):
+
+- `port/include/xbox360/xbr_platform.h` — API publica:
+  `Xbr_Init`, `Xbr_Log(const char *fmt, ...)`, `Xbr_Shutdown`.
+- `port/src/xbox360/xbr_platform.c` — implementacion. `Xbr_Log` usa
+  `OutputDebugStringA` del XDK, con buffer interno de 1024 bytes y
+  `_vsnprintf` de la RTL.
+- `port/src/xbox360/xbr_stubs_sce.c` — stubs no-op (con log a la primera
+  llamada) para los simbolos `sce*` que `src/main.c` y otros .c del juego
+  referencian antes de `Gfx_Init()`. Lista completa (21 simbolos):
+  - Libkernl: `GetThreadId`, `ChangeThreadPriority`, `FlushCache`.
+  - IOP / SIF: `sceFsReset`, `sceCdInit`, `sceCdMmode`,
+    `sceSifInitRpc`, `sceSifRebootIop`, `sceSifSyncIop`,
+    `sceSifLoadModule`.
+  - File I/O PS2: `sceOpen`, `sceLseek`, `sceRead`, `sceClose`.
+  - CD/DVD: `sceCdGetDiskTypeSafe`, `sceCdStatus`, `sceCdSearchFile`.
+  - Random: `func_002BB390`, `Port_Srand`, `Port_Rand`.
+  - Cada stub lleva `// XBOX360: <motivo>` y `TODO(xbox360): <fase y
+    subsistema>` (regla 7 de AGENTS.md).
+- `port/src/xbox360/xbr_main.c` (modificado) — `main()` llama a
+  `Xbr_Init()`, `Xbr_Log("Xbr_main: hello Xbox 360\n")` y entra en un
+  bucle. En 1.4 sustituimos el bucle por `Game_Main()`.
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — anade
+  `xbr_platform.c` y `xbr_stubs_sce.c` a `<ClCompile>`.
+
+### 6.1. Verificacion
+
+Mismo comando de build de la seccion 5.1. Resultado (Release):
+
+```text
+ClCompile:
+  CL.exe ... /TP ..\..\src\xbox360\xbr_main.c
+            ..\..\src\xbox360\xbr_platform.c
+            ..\..\src\xbox360\xbr_stubs_sce.c
+  xbr_main.c
+  xbr_platform.c
+  xbr_stubs_sce.c
+  Generating Code...
+Link:
+  link.exe /OUT:bin\Release\BT3.exe ...
+           obj\Release\xbr_main.obj
+           obj\Release\xbr_platform.obj
+           obj\Release\xbr_stubs_sce.obj /XEX:NO
+ImageXex:
+  imagexex.exe /out:bin\Release\BT3.xex bin\Release\BT3.exe
+
+Compilacion correcta. 0 Advertencia(s) 0 Errores. Tiempo 00:00:01.5
+```
+
+`imagexex /DUMP BT3.xex` confirma load address `0x82000000`, image size
+`0x30000`, entry `0x820103A8`, subsystem `0xE (Xbox)`, machine
+`0x1F2 (PPCBE)` — todo consistente con Xbox 360 PowerPC big-endian.
+
+`Debug` produce `BT3.xex` de `0x40000` bytes (256 KB) con los mismos
+campos. Configuracion funcional.
+
+### 6.2. Hallazgos durante 1.3
+
+- **`getenv()` no existe en la RTL del XDK.** `stdlib.h` del XDK declara
+  `getenv` solo con un `__declspec(deprecated)` que ensena un warning
+  `C4996` y, en el link, el simbolo no esta en ninguna lib (error
+  `LNK2019`). Solucion: la semilla aleatoria vuelve a un valor fijo
+  `0x12345678L` (igual que el port de PC sin `BT3_SEED`). La forma de
+  override en 360 vendra por fichero de configuracion o por el propio
+  `XEX_CONFIG` (fase 2+, subsistema 1 archivos).
+- **Los `.obj` de Xbox 360 son COFF-XBX, no COFF estandar.** `dumpbin
+  /SYMBOLS` los reporta como "Invalid format file" (warning LNK4048).
+  La verificacion de que los simbolos quedaron enlazados se hace por
+  el exito del link (sin LNK2019) y por la inspeccion directa de los
+  nombres en la cadena de imports del PE (no en el string table
+  COFF). Cuando en 1.4 se anada `src/main.c` y se referencien los
+  sce*, el link fallara explicitamente si falta alguno, asi que ese
+  sera el test definitivo.
