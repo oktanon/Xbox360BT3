@@ -4,12 +4,14 @@ Seguimiento del estado de los subsistemas para el port de Dragon Ball Z: Budokai
 
 Toolchain decidido (sesión 5): **XDK** (Microsoft Xbox 360 SDK: Direct3D 9, XInput, XAudio2, XContent). Detalle de tareas en `PLAN.md` (raíz del repo), sección "Hoja de ruta de fases".
 
+Build commands documentados (subtarea 1.1 verificada): [docs/port/xbox360-build.md](./xbox360-build.md).
+
 ## Hoja de ruta de fases
 
 | Fase | Nombre | Subsistemas (regla 3) | Estado | Criterio de salida |
 | :--: | :--- | :--- | :--- | :--- |
 | 0 | Análisis y documentación | — | en curso | Toolchain fijado por escrito; 0 veredictos "Revisar caso por caso"; 0 rutas absolutas en `docs/`; esqueleto de `docs/port/endian-schema.md` |
-| 1 | Toolchain y esqueleto ejecutable | — | pendiente | XEX que arranca y llega con log hasta `Gfx_Init()` |
+| 1 | Toolchain y esqueleto ejecutable | — | en curso | XEX que arranca y llega con log hasta `Gfx_Init()` |
 | 2 | Archivos, memoria e input | 1, 2 | pendiente | Recursos cargados con valores correctos (logs); input XInput verificado |
 | 3 | Renderer | 3 | pendiente | Menú navegable y batalla renderizada, comparables con el build PC (hash/captura) |
 | 4 | Sonido | 4 | pendiente | Música, voces y SFX correctos (XAudio2) |
