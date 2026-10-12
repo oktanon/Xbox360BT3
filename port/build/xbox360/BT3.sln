@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BT3", "BT3.xbox360.vcxproj", "{F0E1D2C3-B4A5-4697-8801-2C3D4E5F6A7B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Xbox 360 = Debug|Xbox 360
+		Release|Xbox 360 = Release|Xbox 360
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F0E1D2C3-B4A5-4697-8801-2C3D4E5F6A7B}.Debug|Xbox 360.ActiveCfg = Debug|Xbox 360
+		{F0E1D2C3-B4A5-4697-8801-2C3D4E5F6A7B}.Debug|Xbox 360.Build.0 = Debug|Xbox 360
+		{F0E1D2C3-B4A5-4697-8801-2C3D4E5F6A7B}.Release|Xbox 360.ActiveCfg = Release|Xbox 360
+		{F0E1D2C3-B4A5-4697-8801-2C3D4E5F6A7B}.Release|Xbox 360.Build.0 = Release|Xbox 360
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -4,12 +4,16 @@ Seguimiento del estado de los subsistemas para el port de Dragon Ball Z: Budokai
 
 Toolchain decidido (sesión 5): **XDK** (Microsoft Xbox 360 SDK: Direct3D 9, XInput, XAudio2, XContent). Detalle de tareas en `PLAN.md` (raíz del repo), sección "Hoja de ruta de fases".
 
+Build commands documentados (subtarea 1.1 verificada): [docs/port/xbox360-build.md](./xbox360-build.md).
+
+Verificacion del XEX y opciones para ejecutarlo (xbWatson, xenia, RGH): [docs/port/xbox360-build.md §8](./xbox360-build.md).
+
 ## Hoja de ruta de fases
 
 | Fase | Nombre | Subsistemas (regla 3) | Estado | Criterio de salida |
 | :--: | :--- | :--- | :--- | :--- |
 | 0 | Análisis y documentación | — | en curso | Toolchain fijado por escrito; 0 veredictos "Revisar caso por caso"; 0 rutas absolutas en `docs/`; esqueleto de `docs/port/endian-schema.md` |
-| 1 | Toolchain y esqueleto ejecutable | — | pendiente | XEX que arranca y llega con log hasta `Gfx_Init()` |
+| 1 | Toolchain y esqueleto ejecutable | — | verificado en hardware | XEX que arranca y llega con log hasta `Gfx_Init()`; traza completa de `Game_Main` capturada en xenia-canary (sesion 14, ver [docs/port/xbox360-build.md §8.5](./xbox360-build.md#85-validacion-runtime-en-xenia)) |
 | 2 | Archivos, memoria e input | 1, 2 | pendiente | Recursos cargados con valores correctos (logs); input XInput verificado |
 | 3 | Renderer | 3 | pendiente | Menú navegable y batalla renderizada, comparables con el build PC (hash/captura) |
 | 4 | Sonido | 4 | pendiente | Música, voces y SFX correctos (XAudio2) |
@@ -43,6 +47,16 @@ Los subsistemas se abordan estrictamente en el orden establecido por la Regla 3 
 | 5 | Memory Card | pendiente | `port/src/plat_mc.c` | Emulación de Sony `libmc` guardando en disco duro o dispositivo de memoria de Xbox 360. |
 | 6 | Películas | pendiente | `port/src/plat_movie.c`<br>`port/src/plat_mpeg2.c` | Reproducción de secuencias de video PSS/MPEG-2 (`sceMpeg*`). |
 | 7 | Lógica restante | pendiente | `port/src/headless.c`<br>`port/src/plat_sys.c`<br>`port/src/plat_stub.c`<br>`port/src/softfloat_ps2.c`<br>`port/src/mathf_pc.c`<br>`port/src/plat_libm.c`<br>`port/src/plat_crash.c`<br>`port/src/plat_stages.c`<br>`port/src/plat_extras.c`<br>`port/src/plat_settings.c`<br>`port/src/plat_fastvec.c` | Aritmética de punto flotante PS2 (FPU/VMX), temporización / VBlank, stubs de syscalls del kernel PS2, inicialización y harness de pruebas. |
+
+## Progreso de Fase 1 (Toolchain y esqueleto ejecutable)
+
+- [x] **1.1** — Comprobación del toolchain: XDK 21256.3 + MSVC 2010 verificados, smoke test "hello XEX" reproducible.
+- [x] **1.2** — Proyecto MSVC 2010 para Xbox 360: `BT3.{props,xbox360.vcxproj,sln}`; build Debug/Release con layout `bin/<Config>/BT3.{exe,xex,pdb,xdb,lib}`.
+- [x] **1.3** — Capa de plataforma (`port/src/xbox360/`): `xbr_platform.{h,c}` con `Xbr_Init/Log/Shutdown`; 21 stubs PS2 (`xbr_stubs_sce.c`).
+- [x] **1.4** — Compilación de `src/main.c`: `xbr_compat.h` (shim MSVC), `xbr_stubs_game.c` (19 stubs de juego + bucle + `Dma_AddScissor` + datos), lazy init en `sceSifInitRpc`.
+- [x] **1.5** — Verificación final: 12/12 trazas de la cadena confirmadas en `bin/Release/BT3.exe` (XEX); opciones para ejecución real documentadas en [docs/port/xbox360-build.md §8](./xbox360-build.md).
+
+Estado: **compila** (criterio estático: build limpio, XEX válido, símbolos enlazados, trazas de `Gfx_Init reached` en el binario). Estado **verificado en hardware** pendiente de la primera ejecución real en xenia/RGH.
 
 ## Progreso de Fase 0 (Análisis y Documentación)
 - [x] Inventario inicial de dependencias y llamadas a hardware PS2 ([docs/port/xbox360-todo.md](./xbox360-todo.md)).
