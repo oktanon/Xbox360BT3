@@ -7,6 +7,7 @@
  */
 #include "xbox360/xbr_platform.h"
 #include "xbox360/xbr_endian.h"
+#include "xbox360/xbr_input.h"
 
 #include <xtl.h>
 #include <stdarg.h>
@@ -21,6 +22,9 @@ void Xbr_Init(void) {
      * conocidos y loguea OK/FAIL. Asi el log de xenia confirma que la
      * conversion LE -> BE es correcta antes de tocar datos reales. */
     Xbr_EndianSelfTest();
+    /* Inicializa la capa XInput. Auto-test integrado: sondea puerto
+     * 0 y loguea si hay pad o no. */
+    Xbr_InputInit();
 }
 
 void Xbr_Log(const char *fmt, ...) {

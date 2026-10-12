@@ -159,6 +159,8 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
 | 1.5 verificacion final | ver seccion 8 | XEX compila + 12/12 trazas en binario; ejecucion real (xbWatson/xenia/RGH) documentada para el usuario | compila |
 | 2.1 archivos | ver seccion 9.5 | sceOpen/Lseek/Read/Close implementados con fopen; mapeo `cdrom0:\` -> `game:\data\`; verificado en xenia con DBZP.BIN real (sesion 14) | verificado en hardware |
+| 2.2 memoria + endian | ver seccion 10.5 | heap 32 MB via malloc + simbolos `gHeapStart/End/Size[0..1]`; helpers `Xbr_Load/StoreLE*`, `Xbr_Swap*`, `Xbr_SwapBuffer*`; auto-test endian + `func_002BB390` desde `game:\bt3.cfg` | verificado en hardware |
+| 2.3 input | ver seccion 11.5 | XInput polling + mapeo a libpad2 PS2 (32 bytes) + vibracion XInputSetState; `sceDbcInit`/`scePad2Init`/`scePad2CreateSocket`/`scePad2GetState`/`scePad2GetButtonProfile`/`scePad2Read`/`sceVibGetProfile`/`sceVibSetActParam` reales; auto-test distingue pad vs DEVICE_NOT_CONNECTED | verificado en hardware |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
@@ -981,3 +983,88 @@ Verificaciones implicitas:
   `Heap_Alloc` y `Heap_Free` (las funciones reales en
   `src/sys/heap.c` que ahora tienen donde trabajar) no
   corrompen el heap.
+
+---
+
+## 11. Input — XInput a libpad2 (subtarea 2.3)
+
+Archivos:
+
+- `port/include/xbox360/xbr_input.h` (nuevo) — API publica:
+  `Xbr_InputInit`, mas los prototipos `sceDbcInit`,
+  `scePad2Init`, `scePad2CreateSocket`, `scePad2GetState`,
+  `scePad2GetButtonProfile`, `scePad2Read`, `sceVibGetProfile`,
+  `sceVibSetActParam` (firmas identicas a las del decomp del
+  juego en `src/sys/pad.c`).
+- `port/src/xbox360/xbr_input.c` (nuevo) — implementacion de
+  las primitivas sce* sobre XInput. Polling fresco en cada
+  `scePad2GetState` / `scePad2Read` (el coste es despreciable).
+- `port/src/xbox360/xbr_platform.c` (modificado) — `Xbr_Init`
+  llama a `Xbr_InputInit` despues del self-test de endian.
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_input.c` al `<ClCompile>`.
+
+### 11.1. Mapeo XInput -> libpad2
+
+`XINPUT_GAMEPAD` (16-bit `wButtons` + 2 triggers de 8 bits + 4 sticks
+de 16-bit con signo) se traduce al buffer de 32 bytes de libpad2
+PS2 que `src/sys/pad.c::Pad_Update` consume asi:
+
+```c
+btn = ((pad->data[PAD_DATA_BTN_HI] << 8) | pad->data[PAD_DATA_BTN_LO]) ^ 0xFFFF;
+pad->right[0] = Pad_StickToFloat(pad->data[PAD_DATA_RX], ...);
+```
+
+| PS2 byte | XInput source | Notas |
+| :-- | :-- | :-- |
+| 0 (BTN_LO) | wButtons: SELECT L3 R3 START UP RIGHT DOWN LEFT (0 = down) | bit invertido: 0 = pulsado |
+| 1 (BTN_HI) | wButtons: L2 R2 L1 R1 TRIANGLE CIRCLE CROSS SQUARE | L2/R2 quedan siempre 0 (Xbox 360 no tiene boton analogico de hombro) |
+| 2 (RX) | sThumbRX (16-bit) -> 0..255 con 0x80 = centro | offset 32768, >> 8 |
+| 3 (RY) | sThumbRY | idem |
+| 4 (LX) | sThumbLX | idem |
+| 5 (LY) | sThumbLY | idem |
+| 6 (R2 raw) | bRightTrigger | 0..255 directo |
+| 7 (L2 raw) | bLeftTrigger | 0..255 directo |
+| 8..31 | 0 | Xbox 360 no tiene sensores de presion (los 12 bytes de pressure data que libpad2 espera quedan a 0) |
+
+`scePad2GetButtonProfile` devuelve `0xF9 0xFF 0x00 0x00` (perfil
+"digital only"), que es la convencion del port de PC: hace que
+`Pad_IsDigitalOnly` retorne true y el juego centre los sticks si
+no hay pad analogico.
+
+### 11.2. Vibracion (XInputSetState)
+
+`XINPUT_VIBRATION` tiene `wLeftMotorSpeed` (low-frequency, "small")
+y `wRightMotorSpeed` (high-frequency, "large"). `sceVibSetActParam`
+recibe 2 bytes en libpad2: `data[0] bit 0` = small on/off,
+`data[1]` = large power (0..254). Mapeo:
+
+| libpad2 | XInput | Conversion |
+| :-- | :-- | :-- |
+| data[0] bit 0 | wLeftMotorSpeed | 0 -> 0, 1 -> 65535 |
+| data[1] | wRightMotorSpeed | byte * 257 (0..65535), clamp |
+
+### 11.3. Validacion runtime en xenia (sesion 14)
+
+El usuario probo dos configuraciones y ambas funcionan:
+
+**Con pad conectado** (lineas relevantes del log):
+```text
+RtlInitAnsiString(..., Xbr_Log: endian self-test OK                <-- 2.2 sigue
+RtlInitAnsiString(..., Xbr_Log: sceDbcInit / scePad2Init          <-- nuevo
+                          (subsistema 2 input, XInput)
+i> F8000008 New controller connected to slot 0.                    <-- xenia ve el pad
+RtlInitAnsiString(..., Xbr_Log: input self-test OK                  <-- auto-test
+                          (puerto 0 con pad)
+```
+
+**Sin pad** (XInput devuelve `ERROR_DEVICE_NOT_CONNECTED`):
+```text
+RtlInitAnsiString(..., Xbr_Log: input self-test OK
+                          (puerto 0 sin pad, XInputGetState
+                           devuelve ERROR_DEVICE_NOT_CONNECTED)
+```
+
+En ambos casos el resto del flujo de 2.1/2.2 sigue funcionando:
+el heap se reserva, sceOpen abre `data\BIN\DBZP.BIN`, el `for(;;)`
+corre hasta el Cheap-skate exit.

@@ -62,7 +62,7 @@ Estado: **verificado en hardware** (criterio cumplido: traza `=== GFX_INIT reach
 
 - [x] **2.1** — Archivos (subsistema 1, parte A): `xbr_file.c` con `sceOpen/Lseek/Read/Close` sobre `fopen`/`fread`/`fseek`/`fclose` de la RTL del XDK; mapeo `cdrom0:\...;1` -> `game:\data\...`; tabla de 16 descriptores. **Verificado en xenia (sesion 14)**: `sceOpen('cdrom0:\BIN\DBZP.BIN;1' -> 'game:\data\BIN\DBZP.BIN') fd=1` con `data\BIN\DBZP.BIN` extraido de la ISO en `<storage_root>`.
 - [x] **2.2** — Memoria y endianness (subsistema 1, parte B): `xbr_heap.c` con `malloc(32 MB)` + simbolos `gHeapStart/End/Size[0..1]`, `gHeapUnk70/78`, `D_3BE71C[0x2000]`. `xbr_endian.h/c` con `Xbr_LoadLE16/32/64`, `Xbr_LoadLES*`, `Xbr_LoadLEF32`, `Xbr_StoreLE*`, `Xbr_Swap16/32/64`, `Xbr_SwapBuffer16/32/64`. Auto-test `Xbr_EndianSelfTest` corre en `Xbr_Init` (7 patrones). `func_002BB390` lee `game:\bt3.cfg` la primera vez. **Verificado en xenia (sesion 14)**: `endian self-test OK` + `Heap_Init OK (32 MB at 0x40100030)` + el bucle `for(;;)` del juego itera abriendo `data\BIN\DBZP.BIN` 5+ veces antes del Cheap-skate exit.
-- [ ] **2.3** — Input (subsistema 2): `XInput` polling, mapeo a `libpad2` PS2, vibracion via `XInputSetState`. Reemplazar stubs `scePad2*` y `sceDbc*` de `xbr_stubs_sce.c`.
+- [x] **2.3** — Input (subsistema 2): `XInput` polling, mapeo a `libpad2` PS2, vibracion via `XInputSetState`. Reemplazar stubs `scePad2*` y `sceDbc*` de `xbr_stubs_sce.c`. **Verificado en xenia (sesion 14)**: `input self-test OK` con `New controller connected to slot 0` (con pad) o `ERROR_DEVICE_NOT_CONNECTED` (sin pad).
 
 ## Progreso de Fase 0 (Análisis y Documentación)
 - [x] Inventario inicial de dependencias y llamadas a hardware PS2 ([docs/port/xbox360-todo.md](./xbox360-todo.md)).
