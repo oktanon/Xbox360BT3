@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  port/build/xbox360/BT3.props
+  Property sheet del proyecto Xbox 360. Se importa desde BT3.xbox360.vcxproj.
+
+  El toolset 2010-01 lee <XDKInstallDir> del registro (HKLM\SOFTWARE\Microsoft\Xbox\2.0\SDK)
+  y, si no lo encuentra, devuelve cadena vacia. En este host la clave no esta. La fijamos
+  aqui directamente para que MSBuild y el IDE de VS 2010 encuentren el XDK sin tocar el
+  registro (decision tomada en la subtarea 1.1 de la fase 1; ver docs/port/xbox360-build.md).
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- XDK 21256.3 instalado. Si la ruta cambia, editar aqui y solo aqui. -->
+    <XDKInstallDir Condition="'$(XDKInstallDir)' == ''">C:\Program Files (x86)\Microsoft Xbox 360 SDK\</XDKInstallDir>
+
+    <!-- Convencion historica del XDK: XEDK es sinonimo de la raiz. -->
+    <XEDK>$(XDKInstallDir)</XEDK>
+
+    <!-- Busqueda de cabeceras en este orden:
+           1) xbox (API publica de Xbox 360, ej. xtl.h, xbox.h, d3d9.h)
+           2) xbox\sys (cabeceras internas: xboxkrnl.lib, etc.)
+           3) win32 (cabeceras de la version "host" de DirectX/XACT que el XDK reexporta
+                     para herramientas de Windows; debe ir DESPUES de xbox\sys para que
+                     xnamath.h tome la version VMX128 y no la SSE; ver smoke test 1.1)
+           4) Cabeceras del port (xbox360 primero, luego comunes del port, luego del juego)
+    -->
+    <IncludePath>$(XDKInstallDir)include\xbox;$(XDKInstallDir)include\xbox\sys;$(XDKInstallDir)include\win32;$(XDKInstallDir)include\shared;$(MSBuildThisFileDirectory)..\..\include\xbox360;$(MSBuildThisFileDirectory)..\..\include;$(MSBuildThisFileDirectory)..\..\..\include;$(MSBuildThisFileDirectory)..\..\src;$(IncludePath)</IncludePath>
+
+    <!-- Busqueda de libs: solo la libreria de Xbox 360; el linker añade $(XDKInstallDir)\lib\xbox. -->
+    <LibraryPath>$(XDKInstallDir)lib\xbox;$(LibraryPath)</LibraryPath>
+
+    <!-- El toolset ya pone $(XDKInstallDir)\bin\win32 en ExecutablePath. No hace falta tocarlo. -->
+  </PropertyGroup>
+</Project>

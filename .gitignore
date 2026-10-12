@@ -12,7 +12,12 @@
 __pycache__/
 /build.ninja
 .ninja_*
-/port/build/
+# /port/build/ contiene fuentes de proyectos de build y sus outputs:
+#   - port/build/xbox360/{*.props,*.vcxproj,*.sln}: proyecto MSVC 2010 de Xbox 360 (fase 1)
+#   - port/build/xbox360/{bin,obj}/: outputs del build (ignorados)
+# Si en el futuro se anade otro proyecto, replicar el patron *\bin y *\obj.
+port/build/*/bin/
+port/build/*/obj/
 /gamedata/
 port/tests/ps2float/*.o
 port/tests/ps2float/*.s

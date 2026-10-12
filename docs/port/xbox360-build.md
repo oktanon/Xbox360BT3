@@ -154,11 +154,146 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | Subtarea | Comando | Salida esperada | Estado |
 | :-- | :-- | :-- | :--: |
 | 1.1 toolchain | ver seccion 3 | XEX valido de smoke test | compila |
-| 1.2 proyecto | `msbuild port/build/xbox360/BT3.xbox360.vcxproj /p:Configuration=Release` | `.xex` con `_XBOX` definido | pendiente |
+| 1.2 proyecto | ver seccion 5 | `.xex` con `_XBOX` definido y entry point en `0x820103A8` | compila |
 | 1.3 stubs | enlazado desde el `.vcxproj` (1.2) | sin errores de simbolo `sce*` no definido | pendiente |
 | 1.4 main.c + bootstrap | idem 1.2 | `.xex` que contiene `main` y los stubs de `Game_Main` | pendiente |
 | 1.5 verificacion final | `imagexex /DUMP` + log de ejecucion | entrada en `Gfx_Init` antes de cuelgue | pendiente |
 
-Los comandos exactos de las subtareas 1.2 a 1.5 se anadiran aqui cuando se
+Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
 de build de 360 (regla 8 de `AGENTS.md`).
+
+---
+
+## 5. Proyecto MSVC 2010 (subtarea 1.2)
+
+Archivos del proyecto (todos versionados, build outputs ignorados por
+`.gitignore` en `/port/build/`):
+
+- `port/build/xbox360/BT3.props` — property sheet: fija `<XDKInstallDir>` a
+  `C:\Program Files (x86)\Microsoft Xbox 360 SDK\` (evita depender de la
+  clave de registro `HKLM\SOFTWARE\Microsoft\Xbox\2.0\SDK`, que no esta
+  en este host), `<XEDK>` y el orden de `<IncludePath>` y `<LibraryPath>`.
+- `port/build/xbox360/BT3.xbox360.vcxproj` — proyecto C++ para plataforma
+  `Xbox 360` (PlatformShortName `xbox`), toolset `2010-01`,
+  `ConfigurationType=Application`. Importa `BT3.props` y la plataforma
+  Xbox 360 (`Microsoft.Cpp.Xbox 360.props`).
+- `port/build/xbox360/BT3.sln` — solucion VS 2010 con dos configuraciones:
+  `Debug|Xbox 360` y `Release|Xbox 360`.
+- `port/src/xbox360/xbr_main.c` — entry point minimo. En 1.3-1.4 se
+  sustituye por `Xbr_Init()` y la llamada a `Game_Main()`.
+
+### 5.1. Comando de build
+
+El toolset `2010-01` ya pone `$(XDKInstallDir)\bin\win32` en
+`$(ExecutablePath)`, asi que MSBuild encuentra `cl.exe`, `link.exe` e
+`imagexex.exe` del XDK sin necesidad de `xdkvars.bat`. Hace falta MSBuild
+**32-bit** (el assembly `Microsoft.Xna.Xbox360.Build.dll` que provee las
+tareas `CL`, `Link` e `ImageXex` es 32-bit):
+
+```bat
+:: cmd /c desde la raiz del repo
+"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe" ^
+  "port\build\xbox360\BT3.xbox360.vcxproj" ^
+  /t:Build ^
+  /p:Configuration=Release ^
+  /p:Platform="Xbox 360" ^
+  /nologo
+```
+
+Si se quiere abrir la solucion en VS 2010 directamente, `devenv` encuentra
+el toolset por su cuenta y no hace falta MSBuild manual.
+
+### 5.2. Salida verificada (Release)
+
+Build limpio (rebuild) con el comando de la seccion 5.1:
+
+```text
+ClCompile:
+  C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\CL.exe /c /Zi /nologo /W3 /WX- /O2
+    /D XBOX360 /D _XBOX /D _MBCS /GF- /Gm- /EHsc /MT /GS /Gy-
+    /fp:fast /fp:except- /Zc:wchar_t /Zc:forScope /GR- /openmp-
+    /Fo"...\port\build\xbox360\obj\Release\\"
+    /Fd"...\port\build\xbox360\obj\Release\vc100.pdb"
+    /TP ..\..\src\xbox360\xbr_main.c
+    /FI"C:\Program Files (x86)\Microsoft Xbox 360 SDK\include\xbox\xbox_intellisense_platform.h"
+  xbr_main.c
+Link:
+  C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\link.exe
+    /OUT:"...\port\build\xbox360\bin\Release\BT3.exe"
+    /PDB:"...\port\build\xbox360\bin\Release\BT3.pdb"
+    /IMPLIB:"...\port\build\xbox360\bin\Release\BT3.lib"
+    xinput2.lib xaudio2.lib d3d9.lib d3dx9.lib
+    obj\Release\xbr_main.obj /XEX:NO
+ImageXex:
+  C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\imagexex.exe
+    /out:"...\port\build\xbox360\bin\Release\BT3.xex"
+    "...\port\build\xbox360\bin\Release\BT3.exe"
+  Microsoft(R) Xbox 360 Image File Builder Version 2.0.21256.0
+
+Compilacion correcta. 0 Advertencia(s) 0 Errores. Tiempo 00:00:01.68
+```
+
+### 5.3. Verificacion del XEX
+
+Tras el build, `imagexex /DUMP` confirma la cabecera del XEX (salida
+real, sesion 14):
+
+```text
+$ imagexex /DUMP port\build\xbox360\bin\Release\BT3.xex
+   82000000 load address
+      30000 image size
+   820103A8 entry point
+   00040000 default stack size
+              title module / 64KB pages
+              North America / Japan / China / rest of Asia / Australia/New Zealand / rest of Europe / rest of world
+              hard disk / DVD/CD / SMB filesystem / direct-from-RAM / Live-signed package
+   NOT-COMPRESSED, ENCRYPTED
+```
+
+`Debug` produce un XEX valido con `image size = 0x40000` (256 KB) y mismo
+load address y entry point; el resto de campos coinciden.
+
+### 5.4. Layout de salida
+
+Para `Configuration=Release` (idem Debug con sufijo de carpeta):
+
+```text
+port/build/xbox360/
+├── bin/Release/
+│   ├── BT3.exe          # PE generado por link.exe
+│   ├── BT3.xex          # XEX generado por imagexex.exe (artefacto final)
+│   ├── BT3.pdb          # PDB estandar de MSVC
+│   ├── BT3.xdb          # simbolos de depuracion de Xbox 360
+│   └── BT3.lib          # import lib (por si otro proyecto lo linkea)
+└── obj/Release/
+    ├── xbr_main.obj     # codigo objeto de port/src/xbox360/xbr_main.c
+    ├── vc100.pdb        # PDB incremental de MSVC
+    └── *.tlog           # tracking logs de MSBuild
+```
+
+Los directorios `bin\` y `obj\` estan en `.gitignore` (`/port/build/`
+y `/build/` en la linea 7 y 15 de `.gitignore`).
+
+### 5.5. Hallazgos durante 1.2
+
+- **MSBuild 64-bit no sirve.** La tarea `ImageXex` viene de
+  `Microsoft.Xna.Xbox360.Build.dll`, que es 32-bit. Hay que usar
+  `C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe` (32-bit) y
+  NO el de `Framework64`. El error es "Se ha intentado cargar un programa
+  con un formato incorrecto."
+- **El toolset Xbox 360 importa el archivo del toolset a su vez.** No
+  hay que importar `Microsoft.Cpp.Xbox 360.PlatformToolset.props` a mano;
+  ya lo hace `Microsoft.Cpp.Xbox 360.props` (linea 16 del .props del
+  toolset). Importarlo dos veces produce `MSB4011`.
+- **`<SubSystem>` no existe para Xbox 360.** El `link.xml` de la
+  plataforma dice literalmente "Xbox 360: Removed SubSystem" (linea 11).
+  El link.exe de PowerPC toma `/SUBSYSTEM:XBOX` por defecto; poner
+  `<SubSystem>XBOX</SubSystem>` en el .vcxproj falla con
+  `error : Element <SubSystem> has an invalid value of "XBOX"`.
+- **`<OutputFile>` se evalua en `Microsoft.Cpp.Xbox 360.props`, antes de
+  los `<PropertyGroup>` de configuracion del .vcxproj.** Si se quiere
+  cambiar el sitio del `.exe` y el `.xex`, hay que fijar `<OutputFile>` y
+  `<ImageXexOutput>` directamente en el PropertyGroup de la
+  configuracion; `<OutDir>` solo no basta (los PDBs y la implib usan
+  OutDir, pero el .exe/.xex no).
