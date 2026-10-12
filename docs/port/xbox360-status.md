@@ -13,7 +13,7 @@ Verificacion del XEX y opciones para ejecutarlo (xbWatson, xenia, RGH): [docs/po
 | Fase | Nombre | Subsistemas (regla 3) | Estado | Criterio de salida |
 | :--: | :--- | :--- | :--- | :--- |
 | 0 | Análisis y documentación | — | en curso | Toolchain fijado por escrito; 0 veredictos "Revisar caso por caso"; 0 rutas absolutas en `docs/`; esqueleto de `docs/port/endian-schema.md` |
-| 1 | Toolchain y esqueleto ejecutable | — | compila | XEX que arranca y llega con log hasta `Gfx_Init()` (verificacion estatica: 12/12 trazas de la cadena confirmadas en el binario, ver [docs/port/xbox360-build.md §7.2](./xbox360-build.md)) |
+| 1 | Toolchain y esqueleto ejecutable | — | verificado en hardware | XEX que arranca y llega con log hasta `Gfx_Init()`; traza completa de `Game_Main` capturada en xenia-canary (sesion 14, ver [docs/port/xbox360-build.md §8.5](./xbox360-build.md#85-validacion-runtime-en-xenia)) |
 | 2 | Archivos, memoria e input | 1, 2 | pendiente | Recursos cargados con valores correctos (logs); input XInput verificado |
 | 3 | Renderer | 3 | pendiente | Menú navegable y batalla renderizada, comparables con el build PC (hash/captura) |
 | 4 | Sonido | 4 | pendiente | Música, voces y SFX correctos (XAudio2) |
