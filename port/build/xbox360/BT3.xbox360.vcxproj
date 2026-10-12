@@ -130,6 +130,12 @@
     <ClCompile Include="..\..\src\xbox360\xbr_file.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="..\..\src\xbox360\xbr_endian.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\src\xbox360\xbr_heap.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\src\xbox360\xbr_stubs_game.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

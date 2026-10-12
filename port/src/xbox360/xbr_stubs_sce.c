@@ -171,14 +171,55 @@ int sceCdSearchFile(void *file, const char *name) {
  * -------------------------------------------------------------------------- */
 
 /* XBOX360: func_002BB390 era el origen de la semilla de rand() en PS2 (un
- * reloj o contador). En Xbox 360 la sembramos con un valor fijo para que
- * cada ejecucion sea repetible (igual que el port de PC sin BT3_SEED).
- * El PC permitia override por env (BT3_SEED=...); aqui no hay getenv() en
- * la RTL del XDK. La forma de override vendra por un fichero de
- * configuracion en game:\ (fase 2+, subsistema 1 archivos) o por
- * configuracion del XEX. */
+ * reloj o contador). Aqui se carga una vez desde el fichero de
+ * configuracion `game:\bt3.cfg` (primera linea, parseada por strtol con
+ * base 0: admite decimal, 0x... hex u 0... octal). Si el fichero no
+ * existe, se usa el valor fijo 0x12345678L (mismo que el port de PC
+ * sin BT3_SEED). Esto reemplaza el `getenv("BT3_SEED")` del PC, que
+ * no existe en la RTL del XDK. */
+#include <stdio.h>
+
+#define XBR_BT3_CFG_PATH "game:\\bt3.cfg"
+#define XBR_BT3_SEED_DEFAULT 0x12345678L
+
+static int sBt3SeedInited = 0;
+static long sBt3Seed = XBR_BT3_SEED_DEFAULT;
+
+static void xbr_load_bt3_seed(void) {
+    FILE *fp;
+    char buf[64];
+    char *end;
+    long v;
+
+    if (sBt3SeedInited) {
+        return;
+    }
+    sBt3SeedInited = 1;
+
+    fp = fopen(XBR_BT3_CFG_PATH, "r");
+    if (fp == NULL) {
+        Xbr_Log("Xbr_Log: %s no existe, semilla = 0x%lX (default)\n",
+                XBR_BT3_CFG_PATH, sBt3Seed);
+        return;
+    }
+    if (fgets(buf, sizeof(buf), fp) == NULL) {
+        fclose(fp);
+        return;
+    }
+    fclose(fp);
+    v = strtol(buf, &end, 0);
+    if (end == buf) {
+        Xbr_Log("Xbr_Log: %s no parseable ('%s'), semilla = 0x%lX (default)\n",
+                XBR_BT3_CFG_PATH, buf, sBt3Seed);
+        return;
+    }
+    sBt3Seed = v;
+    Xbr_Log("Xbr_Log: %s -> semilla = 0x%lX\n", XBR_BT3_CFG_PATH, sBt3Seed);
+}
+
 long func_002BB390(void) {
-    return 0x12345678L;
+    xbr_load_bt3_seed();
+    return sBt3Seed;
 }
 
 /* XBOX360: el rand/srand del juego se reemplazo en el port de PC por

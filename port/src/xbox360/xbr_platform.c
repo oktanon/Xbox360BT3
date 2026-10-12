@@ -6,6 +6,7 @@
  * input, renderer, sonido, etc.) se monta encima de este modulo.
  */
 #include "xbox360/xbr_platform.h"
+#include "xbox360/xbr_endian.h"
 
 #include <xtl.h>
 #include <stdarg.h>
@@ -16,6 +17,10 @@ void Xbr_Init(void) {
      * kernel antes de llamar a main(). Xbr_Init deja la capa lista para
      * que main() salte a Game_Main() en la subtarea 1.4. */
     Xbr_Log("Xbr_Init: port platform ready (XDK 21256.3, PowerPC Xenon, big-endian)\n");
+    /* Auto-test de endianness: corre las primitivas con patrones
+     * conocidos y loguea OK/FAIL. Asi el log de xenia confirma que la
+     * conversion LE -> BE es correcta antes de tocar datos reales. */
+    Xbr_EndianSelfTest();
 }
 
 void Xbr_Log(const char *fmt, ...) {

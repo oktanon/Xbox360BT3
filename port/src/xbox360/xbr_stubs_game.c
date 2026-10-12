@@ -58,16 +58,11 @@ void Sys_InitIopHeap(void) {
     }
 }
 
-/* XBOX360: Heap_Init arma los HeapBlock del juego (ver src/sys/heap.c). En
- * Xbox 360 la gestion de memoria del juego se hara sobre el heap de XAPILIB
- * (fase 2+, subsistema 1). Por ahora no-op. */
-void Heap_Init(void) {
-    static int logged;
-    if (!logged) {
-        Xbr_Log("Xbr_Log: Heap_Init stub (subsistema 1 archivos)\n");
-        logged = 1;
-    }
-}
+/* XBOX360: Heap_Init arma los HeapBlock del juego (ver src/sys/heap.c). La
+ * implementacion real esta en port/src/xbox360/xbr_heap.c (subtarea 2.2
+ * de la fase 2): reserva 32 MB, inicializa un bloque libre unico y
+ * define los simbolos gHeapStart[0..1] / gHeapEnd[0..1] / gHeapSize[0..1]
+ * que el juego referencia como `extern` desde src/sys/heap.c. */
 
 /* XBOX360: este es el TARGET del criterio de salida de la fase 1
  * ("XEX que arranca y llega con log hasta Gfx_Init"). El log se imprime

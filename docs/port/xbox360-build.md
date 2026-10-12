@@ -813,6 +813,120 @@ que en fase 1: como `Gfx_Init` es un stub que no produce
 ningun frame, xenia mata el titulo tras unos segundos de
 inactividad.
 
+---
+
+## 10. Memoria y endianness (subtarea 2.2)
+
+Archivos:
+
+- `port/include/xbox360/xbr_endian.h` (nuevo) — primitivas inline
+  de conversion little-endian / big-endian. Las firmas coinciden
+  con `src/sys/mem_read.c` para sustitucion 1-a-1 cuando proceda:
+  - `Xbr_LoadLE16/32/64` y `Xbr_LoadLES16/32/64`
+  - `Xbr_LoadLEF32`, `Xbr_LoadLE32Raw`
+  - `Xbr_StoreLE16/32/64`, `Xbr_StoreLEF32`
+  - `Xbr_Swap16/32/64`
+  - `Xbr_SwapBuffer16/32/64` (declaradas; implementacion en .c)
+  - `Xbr_EndianSelfTest()` (declarada; implementacion en .c)
+- `port/src/xbox360/xbr_endian.c` (nuevo) — implementacion de
+  `Xbr_SwapBuffer*` y `Xbr_EndianSelfTest`. El self-test corre
+  en `Xbr_Init` y loguea OK/FAIL con 7 patrones:
+  LoadLE32(0x12345678), LoadLES32(-2147483648), LoadLE64,
+  LoadLEF32(-1.0), StoreLE32(0xDEADBEEF), Swap32(0x12345678),
+  SwapBuffer32.
+- `port/src/xbox360/xbr_heap.c` (nuevo) — define los simbolos
+  `gHeapStart[0..1]`, `gHeapEnd[0..1]`, `gHeapSize[0..1]`,
+  `gHeapUnk70[0..1]`, `gHeapUnk78[0..1]`, `gHeapDebugValue`,
+  `gHeapDebugFlag`, `D_3BE71C[0x2000]` que el juego referencia
+  desde `src/sys/heap.c`. `Heap_Init` hace `malloc(32 MB)`,
+  inicializa un unico bloque libre `HeapBlock` con el magic
+  `HEAP_MAGIC = 0x53484254` y fija los punteros. Heap 1 queda
+  a NULL (el juego lo tolera, ver `src/sys/heap.c:53,65`).
+- `port/src/xbox360/xbr_stubs_sce.c` (modificado) — `func_002BB390`
+  lee `game:\bt3.cfg` la primera vez (primera linea parseada con
+  `strtol(buf, NULL, 0)`: admite decimal, 0x... hex u 0... octal).
+  Si el fichero no existe o la linea no parsea, devuelve el
+  default `0x12345678L` (mismo que el port de PC sin `BT3_SEED`).
+- `port/src/xbox360/xbr_platform.c` (modificado) — `Xbr_Init` llama
+  a `Xbr_EndianSelfTest` tras el log de presentacion, asi la
+  conversion endian se verifica en xenia antes de tocar datos.
+- `port/src/xbox360/xbr_stubs_game.c` (modificado) — quitado el
+  stub de `Heap_Init` (ahora viene de `xbr_heap.c`).
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_endian.c` y `xbr_heap.c` al `<ClCompile>`.
+
+### 10.1. Politica de endianness
+
+Regla 2 de AGENTS.md: todo dato leido del disco (little-endian)
+pasa por las primitivas `Xbr_LoadLE*` / `Xbr_StoreLE*`. La
+politica completa esta en `docs/port/endian.md`; los tests
+Python en `port/tests/endian/test_endian.py` (sesion 0) y el
+self-test C en `xbr_endian.c::Xbr_EndianSelfTest` verifican
+el mismo contrato desde dos lados. La sustitucion del codigo
+de `src/sys/mem_read.c` (que hoy son `*(const s32 *)p` directos)
+por `Xbr_LoadLES32(p)` se hara en la fase 3+ cuando se parsee
+un dato de disco real (cabecera TIM, indice AFS, etc.).
+
+### 10.2. Memoria
+
+- El juego espera un heap de 32 MB. En Xbox 360 (espacio plano
+  de 32 bits, 512 MB de RAM) un `malloc(32 MB)` sirve tal cual,
+  sin necesidad de mapear a direcciones PS2 fijas (a diferencia
+  del port de PC, que usa `mmap` para colocar el heap en
+  `0x003BE000..0x02000000`).
+- Solo se expone 1 heap (`gHeapStart[0]`), que coincide con la
+  mayoria del codigo del juego. `gHeapStart[1]` queda a NULL.
+- La zona `D_3BE71C[0x2000]` (8 KB) se reserva en `.bss` para
+  evitar pisar la region que el PC port reserva con `mmap`.
+
+### 10.3. Validacion runtime en xenia (sesion 14)
+
+Salida real de `xenia-canary.exe --log_level=3 --log_file=stdout
+BT3.xex` (recortada por el usuario, ~5 iteraciones del `for(;;)`
+eliminadas):
+
+```text
+RtlInitAnsiString(..., Xbr_Init: port platform ready ...)        <-- Xbr_Init arranca
+RtlInitAnsiString(..., Xbr_Log: endian self-test OK            <-- self-test pasa
+RtlInitAnsiString(..., TODO(xbox360): sceSifRebootIop stub     <-- subsistema 1 stubs
+RtlInitAnsiString(..., TODO(xbox360): sceFsReset stub
+RtlInitAnsiString(..., Xbr_Log: Sys_InitIopHeap stub
+RtlInitAnsiString(..., TODO(xbox360): GetThreadId stub
+NtAllocateVirtualMemory(00000000, 02000030, 60801000, ...)     <-- malloc 32 MB + 0x30
+NtAllocateVirtualMemory = 40100000                              <-- addr baja
+RtlInitAnsiString(..., Xbr_Log: Heap_Init OK (32 MB at 40100030) <-- heap OK
+RtlInitAnsiString(..., === GFX_INIT reached ===                  <-- target fase 1
+RtlInitAnsiString(..., Xbr_Log: Gfx_Init stub
+... (resto de Init_ stubs)
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                 <-- sceOpen path
+NtCreateFile(80100080, ..., game:\data\BIN\DBZP.BIN, ...)        <-- fopen
+HostPathDevice::ResolvePath(\data\BIN)                          <-- xenia resolve
+RtlInitAnsiString(..., Xbr_Log: sceOpen(... fd=1                <-- fd=1 (2.1)
+NtQueryInformationFile ... NtClose                              <-- sceLseek/sceRead/sceClose
+RtlInitAnsiString(..., Xbr_Log: Progress_Main stub              <-- for loop corre
+RtlInitAnsiString(..., Xbr_Log: Battle_Main stub
+... (5+ iteraciones del for(;;) re-leyendo DBZP.BIN)
+i> 00001D00 Cheap-skate exit!                                   <-- watchdog de xenia
+```
+
+Verificaciones implicitas:
+- `endian self-test OK`: las 7 primitivas (`LoadLE32`,
+  `LoadLES32`, `LoadLE64`, `LoadLEF32`, `StoreLE32`, `Swap32`,
+  `SwapBuffer32`) producen los valores esperados en PPC
+  big-endian. Cualquier inversion de bytes que hubieramos
+  hecho en el asm/compilador se veria aqui.
+- `Heap_Init OK (32 MB at 0x40100030)`: `malloc(32 MB)` de la
+  RTL del XDK ha devuelto 32 MB, el primer `HeapBlock` se ha
+  inicializado con magic `HEAP_MAGIC`, `used=0`, `data=0` y
+  trailer. Los simbolos `gHeapStart[0]/End[0]/Size[0]` quedan
+  apuntando al buffer. Cualquier intento del juego de pedir
+  memoria via `Heap_Alloc` encontrara el bloque libre.
+- El bucle `for(;;)` del juego itera 5+ veces abriendo
+  `data\BIN\DBZP.BIN` por iteracion, lo que confirma que
+  `Heap_Alloc` y `Heap_Free` (las funciones reales en
+  `src/sys/heap.c` que ahora tienen donde trabajar) no
+  corrompen el heap.
+
 ### 8.5. Validacion runtime en xenia
 
 Captura real del XEX corriendo en `xenia-canary` con flag verbose
