@@ -14,7 +14,7 @@ Verificacion del XEX y opciones para ejecutarlo (xbWatson, xenia, RGH): [docs/po
 | :--: | :--- | :--- | :--- | :--- |
 | 0 | Análisis y documentación | — | en curso | Toolchain fijado por escrito; 0 veredictos "Revisar caso por caso"; 0 rutas absolutas en `docs/`; esqueleto de `docs/port/endian-schema.md` |
 | 1 | Toolchain y esqueleto ejecutable | — | verificado en hardware | XEX que arranca y llega con log hasta `Gfx_Init()`; traza completa de `Game_Main` capturada en xenia-canary (sesion 14, ver [docs/port/xbox360-build.md §8.5](./xbox360-build.md#85-validacion-runtime-en-xenia)) |
-| 2 | Archivos, memoria e input | 1, 2 | pendiente | Recursos cargados con valores correctos (logs); input XInput verificado |
+| 2 | Archivos, memoria e input | 1, 2 | en curso | Recursos cargados con valores correctos (logs); input XInput verificado |
 | 3 | Renderer | 3 | pendiente | Menú navegable y batalla renderizada, comparables con el build PC (hash/captura) |
 | 4 | Sonido | 4 | pendiente | Música, voces y SFX correctos (XAudio2) |
 | 5 | Memory Card | 5 | pendiente | Guardar/cargar partida y replay con checksum válido |
@@ -40,7 +40,7 @@ Los subsistemas se abordan estrictamente en el orden establecido por la Regla 3 
 
 | Orden | Subsistema | Estado | Referencia PC (`port/src/`) | Descripción / Alcance |
 | :---: | :--- | :---: | :--- | :--- |
-| 1 | Archivos / Memoria | pendiente | `port/src/plat_file.c`<br>`port/src/plat_fcache.c`<br>`port/src/plat_mem.c` | Sistema de archivos CRI ADXF sobre almacenamiento de 360, gestión del heap y memoria fija de PS2 (32 MB mapeados en PowerPC Xenon), conversiones de endianness para datos leídos del disco. |
+| 1 | Archivos / Memoria | en curso | `port/src/plat_file.c`<br>`port/src/plat_fcache.c`<br>`port/src/plat_mem.c` | Sistema de archivos CRI ADXF sobre almacenamiento de 360, gestión del heap y memoria fija de PS2 (32 MB mapeados en PowerPC Xenon), conversiones de endianness para datos leídos del disco. 2.1 cerrado: `sceOpen/Lseek/Read/Close` sobre fopen con mapeo `cdrom0:\` -> `game:\data\`. |
 | 2 | Input | pendiente | `port/src/gs/gs_input.c` | Mapeo de mandos Xbox 360 (XInput) al buffer de pad PS2 (`libpad2` en `src/sys/pad.c`). |
 | 3 | Renderer | pendiente | `port/src/plat_gs.c`<br>`port/src/gs_marker.c`<br>`port/src/gs/gs_core.c`<br>`port/src/gs/gs_draw.c`<br>`port/src/gs/gs_gpu.c`<br>`port/src/gs/gs_gl.c`<br>`port/src/gs/gs_sony.c`<br>`port/src/gs/gs_vu1.c`<br>`port/src/gs/gs_texpack.c` | Capa gráfica: emulación de GS / VIF1 / GIF, microprogramas VU1 y pipelines de renderizado adaptados a Direct3D 9 / GPU Xenos. |
 | 4 | Sonido | pendiente | `port/src/gs/snd_adx.c`<br>`port/src/gs/snd_se.c`<br>`port/src/plat_sndstate.c`<br>`port/src/plat_songs.c` | Decodificación y reproducción de streams de audio CRI ADX y efectos de sonido (sampler SOUNDS.IRX reemplazado por backend de audio XAudio2). |
@@ -56,7 +56,13 @@ Los subsistemas se abordan estrictamente en el orden establecido por la Regla 3 
 - [x] **1.4** — Compilación de `src/main.c`: `xbr_compat.h` (shim MSVC), `xbr_stubs_game.c` (19 stubs de juego + bucle + `Dma_AddScissor` + datos), lazy init en `sceSifInitRpc`.
 - [x] **1.5** — Verificación final: 12/12 trazas de la cadena confirmadas en `bin/Release/BT3.exe` (XEX); opciones para ejecución real documentadas en [docs/port/xbox360-build.md §8](./xbox360-build.md).
 
-Estado: **compila** (criterio estático: build limpio, XEX válido, símbolos enlazados, trazas de `Gfx_Init reached` en el binario). Estado **verificado en hardware** pendiente de la primera ejecución real en xenia/RGH.
+Estado: **verificado en hardware** (criterio cumplido: traza `=== GFX_INIT reached ===` capturada en xenia-canary con `--log_level=3 --log_file=stdout`, sesion 14; ver [docs/port/xbox360-build.md §8.5](./xbox360-build.md)). RGH/devkit pendientes para verificacion cruzada.
+
+## Progreso de Fase 2 (Archivos, memoria e input)
+
+- [x] **2.1** — Archivos (subsistema 1, parte A): `xbr_file.c` con `sceOpen/Lseek/Read/Close` sobre `fopen`/`fread`/`fseek`/`fclose` de la RTL del XDK; mapeo `cdrom0:\...;1` -> `game:\data\...`; tabla de 16 descriptores. Sin conversion endian (2.2) y sin File_Init/AFS (2.1+). Ver [docs/port/xbox360-build.md §9](./xbox360-build.md).
+- [ ] **2.2** — Memoria y endianness (subsistema 1, parte B): `Heap_Init/Alloc/Free` reales; helpers `Xbr_LoadLE16/32/64` y `Xbr_StoreLE*`; `func_002BB390` desde fichero de config en `game:\bt3.cfg`.
+- [ ] **2.3** — Input (subsistema 2): `XInput` polling, mapeo a `libpad2` PS2, vibracion via `XInputSetState`. Reemplazar stubs `scePad2*` y `sceDbc*` de `xbr_stubs_sce.c`.
 
 ## Progreso de Fase 0 (Análisis y Documentación)
 - [x] Inventario inicial de dependencias y llamadas a hardware PS2 ([docs/port/xbox360-todo.md](./xbox360-todo.md)).
