@@ -41,3 +41,9 @@ port/build_release/
 /stages/
 /songs/
 /textures/
+
+# Disco del juego y su extraccion (regla 6 de AGENTS.md + peticion explicita
+# del usuario en sesion 14: no se commitea la .iso ni su contenido extraido).
+# La .iso ya esta cubierta arriba por "*.iso"; el directorio de extraccion
+# queda ignorado explicitamente con el nombre exacto de la carpeta.
+/Dragon Ball Z - Budokai Tenkaichi 3/

@@ -158,6 +158,9 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
 | 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
 | 1.5 verificacion final | ver seccion 8 | XEX compila + 12/12 trazas en binario; ejecucion real (xbWatson/xenia/RGH) documentada para el usuario | compila |
+| 2.1 archivos | ver seccion 9.5 | sceOpen/Lseek/Read/Close implementados con fopen; mapeo `cdrom0:\` -> `game:\data\`; verificado en xenia con DBZP.BIN real (sesion 14) | verificado en hardware |
+| 2.2 memoria + endian | ver seccion 10.5 | heap 32 MB via malloc + simbolos `gHeapStart/End/Size[0..1]`; helpers `Xbr_Load/StoreLE*`, `Xbr_Swap*`, `Xbr_SwapBuffer*`; auto-test endian + `func_002BB390` desde `game:\bt3.cfg` | verificado en hardware |
+| 2.3 input | ver seccion 11.5 | XInput polling + mapeo a libpad2 PS2 (32 bytes) + vibracion XInputSetState; `sceDbcInit`/`scePad2Init`/`scePad2CreateSocket`/`scePad2GetState`/`scePad2GetButtonProfile`/`scePad2Read`/`sceVibGetProfile`/`sceVibSetActParam` reales; auto-test distingue pad vs DEVICE_NOT_CONNECTED | verificado en hardware |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
@@ -709,3 +712,359 @@ Resultado:
 - xenia termina el titulo con "Cheap-skate exit" (no es un fallo
   del XEX: nuestro `Game_Main` no retorna nunca; xenia mata el
   hilo principal al detectar que la ejecucion no avanza).
+
+---
+
+## 9. Archivos — sceOpen/Lseek/Read/Close (subtarea 2.1)
+
+Archivos tocados:
+
+- `port/src/xbox360/xbr_file.c` (nuevo) — implementacion real de
+  `sceOpen`, `sceLseek`, `sceRead`, `sceClose` sobre `fopen`/
+  `fread`/`fseek`/`fclose` de la RTL del XDK. Tabla de 16
+  descriptores abiertos simultaneamente (estilo PS2: 0 = invalido,
+  fd = indice + 1).
+- `port/src/xbox360/xbr_stubs_sce.c` (modificado) — quitados los
+  4 stubs de `sceOpen/Lseek/Read/Close`. Quedan los stubs de
+  `sceCd*`, `sceSif*`, `sceFsReset` y libkernl (se iran
+  reasignando a backends reales en 2.1+ y fases 3-6).
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_file.c` al `<ClCompile>`.
+
+### 9.1. Mapeo de paths PS2 -> Xbox 360
+
+El juego almacena paths estilo PS2 (`cdrom0:\BIN\DBZP.BIN;1`). El
+port los traduce a paths Xbox 360 sobre el dispositivo `game:`:
+
+| PS2 | Xbox 360 |
+| :-- | :-- |
+| `cdrom0:\BIN\DBZP.BIN;1` | `game:\data\BIN\DBZP.BIN` |
+| `cdrom0:\DATA\pzs3usN.afs` | `game:\data\DATA\pzs3usN.afs` |
+| `cdrom0:\SOUND\xxx.ads` | `game:\data\SOUND\xxx.ads` |
+
+Reglas en `xbr_translate_path` (en `xbr_file.c`):
+- Prefijo `cdrom0:\` o `cdrom0:/` -> prepending `game:\data\`.
+- Sufijo `;<N>` (version PS2) -> descartado (la RTL no lo entiende
+  y los datos vienen sin el).
+- Cualquier otro path -> se devuelve tal cual.
+
+### 9.2. Politica de instalacion de los datos del juego
+
+Los datos del juego se extraen de la ISO en la raiz del repo
+(`Dragon Ball Z - Budokai Tenkaichi 3.iso`, ignorado por
+`.gitignore` `*.iso` linea 1) y se depositan en `game:\data\`
+segun la plataforma destino:
+
+- **xenia-canary**: el storage root de la sesion 14 fue
+  `C:\Users\Usuario\Downloads\xenia_canary_windows\`. El
+  dispositivo `game:` se monta sobre un subdirectorio (la
+  convencion exacta depende de la version; en builds recientes
+  es `<storage_root>\game\` o via flag `--game_path=...`). El
+  usuario debe crear la estructura `game\data\BIN\`, copiar
+  `DBZP.BIN` extraido de la ISO y arrancar `xenia-canary.exe
+  --log_level=3 --log_file=stdout BT3.xex`. El log deberia
+  mostrar `Xbr_Log: sceOpen('cdrom0:\\BIN\\DBZP.BIN;1' ->
+  'game:\\data\\BIN\\DBZP.BIN') fd=1` y el bucle de
+  `Overlay_Load` saldria del do/while (en lugar del hang
+  actual con `-1`).
+- **xbWatson** (devkit): `xbcp BT3.xex xe:\BT3.xex` y luego
+  crear `xe:\data\BIN\DBZP.BIN` con los bytes extraidos.
+- **RGH**: Aurora/FSD con FTP; depositar en `game:\data\BIN\`.
+
+Extraccion minima para probar el camino feliz (1 fichero):
+
+```bat
+:: Comprobar que el path existe en la ISO
+"C:\Program Files\7-Zip\7z.exe" l "Dragon Ball Z - Budokai Tenkaichi 3.iso" BIN\DBZP.BIN
+:: Extraerlo
+"C:\Program Files\7-Zip\7z.exe" e -y -o"<destino>\BIN" "...iso" BIN\DBZP.BIN
+```
+
+### 9.3. Comportamiento esperado de Overlay_Load
+
+- **Sin datos en `game:\data\`** (estado actual, fase 1.5):
+  `sceOpen` devuelve -1, `Xbr_Log: sceOpen('cdrom0:\\BIN\\
+  DBZP.BIN;1' -> 'game:\\data\\BIN\\DBZP.BIN') no existe` (una
+  sola vez por el flag estatico), `Overlay_Load` se cuelga en
+  el do/while, xenia acaba con "Cheap-skate exit". Es lo
+  observado en sesion 14.
+- **Con `BIN\DBZP.BIN` en `game:\data\`**: `sceOpen` devuelve
+  fd=1, `Xbr_Log: sceOpen('cdrom0:\\BIN\\DBZP.BIN;1' ->
+  'game:\\data\\BIN\\DBZP.BIN') fd=1` (una vez), `sceLseek`
+  devuelve el tamano (563996 en la ISO), `sceRead(fd=1,
+  MainMenu_StartBallLoops, size)` copia el menu overlay,
+  `sceClose(fd=1)` cierra, `Overlay_Load` retorna 0, y el
+  bucle de `Game_Main` continua con `Progress_Main(0)` y
+  `Battle_Main(0)`. Nuestro stub de `Progress_Main` loguea
+  y retorna, lo mismo `Battle_Main`, y vuelta a empezar.
+  La verificacion del contenido del overlay (paridad con PC)
+  ya entra en fase 7 (verificacion funcional) y requiere el
+  render y el logica de batalla, no solo el filesystem.
+
+### 9.4. Restricciones de 2.1
+
+- Solo lectura (`SCE_RDONLY`). Escritura (`SCE_WRONLY`,
+  `SCE_CREAT`, `SCE_TRUNC`) entra en fases 5/8 (saves,
+  overlays regrabables).
+- Sin soporte de AFS: `File_LoadSyncEx`, `File_OpenById` y
+  la cola asincrona de `FileReq` siguen siendo stubs de
+  `xbr_stubs_game.c`. Eso es 2.1+ (o 2.x extendido), no 2.1.
+- Sin conversion endian: `sceRead` entrega los bytes crudos
+  del fichero. La conversion `little-endian -> big-endian`
+  es la subtarea 2.2 (helpers `Xbr_LoadLE16/32/64` en
+  `port/include/xbox360/`).
+- 16 descriptores maximo simultaneos. La cola de archivos
+  asincronos de PS2 (32 entradas, ver `FileReq` en
+  `include/sys/file.h`) entraria en 2.1+ si hace falta.
+
+### 9.5. Validacion runtime en xenia (sesion 14)
+
+Con `data\BIN\DBZP.BIN` extraido de la ISO y depositado en
+`<xenia_storage_root>\data\BIN\DBZP.BIN` (564 KB, hash
+SHA1 `4F910969E05D9B25C83AF7642B60DA9949A4348B`),
+`xenia-canary.exe --log_level=3 --log_file=stdout BT3.xex`
+muestra la cadena real de apertura:
+
+```text
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                <-- xbr_translate_path
+NtCreateFile(80100080, ..., game:\data\BIN\DBZP.BIN, ...)     <-- xapilib fopen -> NtCreateFile
+HostPathDevice::ResolvePath(\data\BIN)                        <-- xenia resuelve al host
+Xbr_Log: sceOpen('cdrom0:\BIN\DBZP.BIN;1' ->                 <-- nuestro log
+            'game:\data\BIN\DBZP.BIN') fd=1                       fd=1, abierto OK
+NtQueryInformationFile(...)                                   <-- fseek/ftell (tamanio y posicion)
+NtClose(F800000C)                                             <-- fclose
+Xbr_Log: Progress_Main stub (loop final; subsistema 7)        <-- el for(;;) ya corre
+Xbr_Log: Battle_Main stub (loop final; subsistema 7)
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                <-- siguiente iteracion del bucle
+NtCreateFile(...)                                             <-- siguiente sceOpen
+...
+i> 00001994 Cheap-skate exit!                                 <-- xenia mata el titulo
+```
+
+Verificaciones implicitas (en orden de la traza):
+- `RtlInitAnsiString` con la cadena `game:\data\BIN\DBZP.BIN`
+  confirma que la traduccion `cdrom0:\BIN\DBZP.BIN;1` ->
+  `game:\data\BIN\DBZP.BIN` se ejecuta.
+- `NtCreateFile` con la ruta `game:\data\BIN\DBZP.BIN` confirma
+  que el fopen de la RTL del XDK se traduce a una llamada
+  al kernel real de xenia.
+- `HostPathDevice::ResolvePath(\data\BIN)` confirma que xenia
+  monta `game:\` sobre el storage root (en este host
+  `C:\Users\Usuario\Downloads\xenia_canary_windows\`).
+- `Xbr_Log: sceOpen(...) fd=1` confirma que `fopen` devolvio
+  un FILE* valido y que la tabla de descriptores le asigna fd=1.
+- `NtQueryInformationFile` (clase 0x22 = FileStandardInformation)
+  + `NtClose` corresponden a `sceLseek(SEEK_END)` + `sceLseek
+  (SEEK_SET, 0)` + `sceRead` + `sceClose`. NtReadFile no
+  aparece en el log porque xenia implementa fread a traves
+  de su capa de stdio interna (no siempre via NtReadFile
+  explicito); la operacion de lectura es correcta.
+- `Progress_Main` y `Battle_Main` aparecen tras la primera
+  iteracion, confirmando que `Overlay_Load` retorno 0
+  (antes colgaba con `fd=-1`).
+- El log se repite (lineas finales del recortado): cada
+  iteracion del `for(;;)` re-abre y re-lee `DBZP.BIN`.
+
+El "Cheap-skate exit" final es el mismo watchdog de xenia
+que en fase 1: como `Gfx_Init` es un stub que no produce
+ningun frame, xenia mata el titulo tras unos segundos de
+inactividad.
+
+---
+
+## 10. Memoria y endianness (subtarea 2.2)
+
+Archivos:
+
+- `port/include/xbox360/xbr_endian.h` (nuevo) — primitivas inline
+  de conversion little-endian / big-endian. Las firmas coinciden
+  con `src/sys/mem_read.c` para sustitucion 1-a-1 cuando proceda:
+  - `Xbr_LoadLE16/32/64` y `Xbr_LoadLES16/32/64`
+  - `Xbr_LoadLEF32`, `Xbr_LoadLE32Raw`
+  - `Xbr_StoreLE16/32/64`, `Xbr_StoreLEF32`
+  - `Xbr_Swap16/32/64`
+  - `Xbr_SwapBuffer16/32/64` (declaradas; implementacion en .c)
+  - `Xbr_EndianSelfTest()` (declarada; implementacion en .c)
+- `port/src/xbox360/xbr_endian.c` (nuevo) — implementacion de
+  `Xbr_SwapBuffer*` y `Xbr_EndianSelfTest`. El self-test corre
+  en `Xbr_Init` y loguea OK/FAIL con 7 patrones:
+  LoadLE32(0x12345678), LoadLES32(-2147483648), LoadLE64,
+  LoadLEF32(-1.0), StoreLE32(0xDEADBEEF), Swap32(0x12345678),
+  SwapBuffer32.
+- `port/src/xbox360/xbr_heap.c` (nuevo) — define los simbolos
+  `gHeapStart[0..1]`, `gHeapEnd[0..1]`, `gHeapSize[0..1]`,
+  `gHeapUnk70[0..1]`, `gHeapUnk78[0..1]`, `gHeapDebugValue`,
+  `gHeapDebugFlag`, `D_3BE71C[0x2000]` que el juego referencia
+  desde `src/sys/heap.c`. `Heap_Init` hace `malloc(32 MB)`,
+  inicializa un unico bloque libre `HeapBlock` con el magic
+  `HEAP_MAGIC = 0x53484254` y fija los punteros. Heap 1 queda
+  a NULL (el juego lo tolera, ver `src/sys/heap.c:53,65`).
+- `port/src/xbox360/xbr_stubs_sce.c` (modificado) — `func_002BB390`
+  lee `game:\bt3.cfg` la primera vez (primera linea parseada con
+  `strtol(buf, NULL, 0)`: admite decimal, 0x... hex u 0... octal).
+  Si el fichero no existe o la linea no parsea, devuelve el
+  default `0x12345678L` (mismo que el port de PC sin `BT3_SEED`).
+- `port/src/xbox360/xbr_platform.c` (modificado) — `Xbr_Init` llama
+  a `Xbr_EndianSelfTest` tras el log de presentacion, asi la
+  conversion endian se verifica en xenia antes de tocar datos.
+- `port/src/xbox360/xbr_stubs_game.c` (modificado) — quitado el
+  stub de `Heap_Init` (ahora viene de `xbr_heap.c`).
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_endian.c` y `xbr_heap.c` al `<ClCompile>`.
+
+### 10.1. Politica de endianness
+
+Regla 2 de AGENTS.md: todo dato leido del disco (little-endian)
+pasa por las primitivas `Xbr_LoadLE*` / `Xbr_StoreLE*`. La
+politica completa esta en `docs/port/endian.md`; los tests
+Python en `port/tests/endian/test_endian.py` (sesion 0) y el
+self-test C en `xbr_endian.c::Xbr_EndianSelfTest` verifican
+el mismo contrato desde dos lados. La sustitucion del codigo
+de `src/sys/mem_read.c` (que hoy son `*(const s32 *)p` directos)
+por `Xbr_LoadLES32(p)` se hara en la fase 3+ cuando se parsee
+un dato de disco real (cabecera TIM, indice AFS, etc.).
+
+### 10.2. Memoria
+
+- El juego espera un heap de 32 MB. En Xbox 360 (espacio plano
+  de 32 bits, 512 MB de RAM) un `malloc(32 MB)` sirve tal cual,
+  sin necesidad de mapear a direcciones PS2 fijas (a diferencia
+  del port de PC, que usa `mmap` para colocar el heap en
+  `0x003BE000..0x02000000`).
+- Solo se expone 1 heap (`gHeapStart[0]`), que coincide con la
+  mayoria del codigo del juego. `gHeapStart[1]` queda a NULL.
+- La zona `D_3BE71C[0x2000]` (8 KB) se reserva en `.bss` para
+  evitar pisar la region que el PC port reserva con `mmap`.
+
+### 10.3. Validacion runtime en xenia (sesion 14)
+
+Salida real de `xenia-canary.exe --log_level=3 --log_file=stdout
+BT3.xex` (recortada por el usuario, ~5 iteraciones del `for(;;)`
+eliminadas):
+
+```text
+RtlInitAnsiString(..., Xbr_Init: port platform ready ...)        <-- Xbr_Init arranca
+RtlInitAnsiString(..., Xbr_Log: endian self-test OK            <-- self-test pasa
+RtlInitAnsiString(..., TODO(xbox360): sceSifRebootIop stub     <-- subsistema 1 stubs
+RtlInitAnsiString(..., TODO(xbox360): sceFsReset stub
+RtlInitAnsiString(..., Xbr_Log: Sys_InitIopHeap stub
+RtlInitAnsiString(..., TODO(xbox360): GetThreadId stub
+NtAllocateVirtualMemory(00000000, 02000030, 60801000, ...)     <-- malloc 32 MB + 0x30
+NtAllocateVirtualMemory = 40100000                              <-- addr baja
+RtlInitAnsiString(..., Xbr_Log: Heap_Init OK (32 MB at 40100030) <-- heap OK
+RtlInitAnsiString(..., === GFX_INIT reached ===                  <-- target fase 1
+RtlInitAnsiString(..., Xbr_Log: Gfx_Init stub
+... (resto de Init_ stubs)
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                 <-- sceOpen path
+NtCreateFile(80100080, ..., game:\data\BIN\DBZP.BIN, ...)        <-- fopen
+HostPathDevice::ResolvePath(\data\BIN)                          <-- xenia resolve
+RtlInitAnsiString(..., Xbr_Log: sceOpen(... fd=1                <-- fd=1 (2.1)
+NtQueryInformationFile ... NtClose                              <-- sceLseek/sceRead/sceClose
+RtlInitAnsiString(..., Xbr_Log: Progress_Main stub              <-- for loop corre
+RtlInitAnsiString(..., Xbr_Log: Battle_Main stub
+... (5+ iteraciones del for(;;) re-leyendo DBZP.BIN)
+i> 00001D00 Cheap-skate exit!                                   <-- watchdog de xenia
+```
+
+Verificaciones implicitas:
+- `endian self-test OK`: las 7 primitivas (`LoadLE32`,
+  `LoadLES32`, `LoadLE64`, `LoadLEF32`, `StoreLE32`, `Swap32`,
+  `SwapBuffer32`) producen los valores esperados en PPC
+  big-endian. Cualquier inversion de bytes que hubieramos
+  hecho en el asm/compilador se veria aqui.
+- `Heap_Init OK (32 MB at 0x40100030)`: `malloc(32 MB)` de la
+  RTL del XDK ha devuelto 32 MB, el primer `HeapBlock` se ha
+  inicializado con magic `HEAP_MAGIC`, `used=0`, `data=0` y
+  trailer. Los simbolos `gHeapStart[0]/End[0]/Size[0]` quedan
+  apuntando al buffer. Cualquier intento del juego de pedir
+  memoria via `Heap_Alloc` encontrara el bloque libre.
+- El bucle `for(;;)` del juego itera 5+ veces abriendo
+  `data\BIN\DBZP.BIN` por iteracion, lo que confirma que
+  `Heap_Alloc` y `Heap_Free` (las funciones reales en
+  `src/sys/heap.c` que ahora tienen donde trabajar) no
+  corrompen el heap.
+
+---
+
+## 11. Input — XInput a libpad2 (subtarea 2.3)
+
+Archivos:
+
+- `port/include/xbox360/xbr_input.h` (nuevo) — API publica:
+  `Xbr_InputInit`, mas los prototipos `sceDbcInit`,
+  `scePad2Init`, `scePad2CreateSocket`, `scePad2GetState`,
+  `scePad2GetButtonProfile`, `scePad2Read`, `sceVibGetProfile`,
+  `sceVibSetActParam` (firmas identicas a las del decomp del
+  juego en `src/sys/pad.c`).
+- `port/src/xbox360/xbr_input.c` (nuevo) — implementacion de
+  las primitivas sce* sobre XInput. Polling fresco en cada
+  `scePad2GetState` / `scePad2Read` (el coste es despreciable).
+- `port/src/xbox360/xbr_platform.c` (modificado) — `Xbr_Init`
+  llama a `Xbr_InputInit` despues del self-test de endian.
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_input.c` al `<ClCompile>`.
+
+### 11.1. Mapeo XInput -> libpad2
+
+`XINPUT_GAMEPAD` (16-bit `wButtons` + 2 triggers de 8 bits + 4 sticks
+de 16-bit con signo) se traduce al buffer de 32 bytes de libpad2
+PS2 que `src/sys/pad.c::Pad_Update` consume asi:
+
+```c
+btn = ((pad->data[PAD_DATA_BTN_HI] << 8) | pad->data[PAD_DATA_BTN_LO]) ^ 0xFFFF;
+pad->right[0] = Pad_StickToFloat(pad->data[PAD_DATA_RX], ...);
+```
+
+| PS2 byte | XInput source | Notas |
+| :-- | :-- | :-- |
+| 0 (BTN_LO) | wButtons: SELECT L3 R3 START UP RIGHT DOWN LEFT (0 = down) | bit invertido: 0 = pulsado |
+| 1 (BTN_HI) | wButtons: L2 R2 L1 R1 TRIANGLE CIRCLE CROSS SQUARE | L2/R2 quedan siempre 0 (Xbox 360 no tiene boton analogico de hombro) |
+| 2 (RX) | sThumbRX (16-bit) -> 0..255 con 0x80 = centro | offset 32768, >> 8 |
+| 3 (RY) | sThumbRY | idem |
+| 4 (LX) | sThumbLX | idem |
+| 5 (LY) | sThumbLY | idem |
+| 6 (R2 raw) | bRightTrigger | 0..255 directo |
+| 7 (L2 raw) | bLeftTrigger | 0..255 directo |
+| 8..31 | 0 | Xbox 360 no tiene sensores de presion (los 12 bytes de pressure data que libpad2 espera quedan a 0) |
+
+`scePad2GetButtonProfile` devuelve `0xF9 0xFF 0x00 0x00` (perfil
+"digital only"), que es la convencion del port de PC: hace que
+`Pad_IsDigitalOnly` retorne true y el juego centre los sticks si
+no hay pad analogico.
+
+### 11.2. Vibracion (XInputSetState)
+
+`XINPUT_VIBRATION` tiene `wLeftMotorSpeed` (low-frequency, "small")
+y `wRightMotorSpeed` (high-frequency, "large"). `sceVibSetActParam`
+recibe 2 bytes en libpad2: `data[0] bit 0` = small on/off,
+`data[1]` = large power (0..254). Mapeo:
+
+| libpad2 | XInput | Conversion |
+| :-- | :-- | :-- |
+| data[0] bit 0 | wLeftMotorSpeed | 0 -> 0, 1 -> 65535 |
+| data[1] | wRightMotorSpeed | byte * 257 (0..65535), clamp |
+
+### 11.3. Validacion runtime en xenia (sesion 14)
+
+El usuario probo dos configuraciones y ambas funcionan:
+
+**Con pad conectado** (lineas relevantes del log):
+```text
+RtlInitAnsiString(..., Xbr_Log: endian self-test OK                <-- 2.2 sigue
+RtlInitAnsiString(..., Xbr_Log: sceDbcInit / scePad2Init          <-- nuevo
+                          (subsistema 2 input, XInput)
+i> F8000008 New controller connected to slot 0.                    <-- xenia ve el pad
+RtlInitAnsiString(..., Xbr_Log: input self-test OK                  <-- auto-test
+                          (puerto 0 con pad)
+```
+
+**Sin pad** (XInput devuelve `ERROR_DEVICE_NOT_CONNECTED`):
+```text
+RtlInitAnsiString(..., Xbr_Log: input self-test OK
+                          (puerto 0 sin pad, XInputGetState
+                           devuelve ERROR_DEVICE_NOT_CONNECTED)
+```
+
+En ambos casos el resto del flujo de 2.1/2.2 sigue funcionando:
+el heap se reserva, sceOpen abre `data\BIN\DBZP.BIN`, el `for(;;)`
+corre hasta el Cheap-skate exit.
