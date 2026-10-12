@@ -158,7 +158,7 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
 | 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
 | 1.5 verificacion final | ver seccion 8 | XEX compila + 12/12 trazas en binario; ejecucion real (xbWatson/xenia/RGH) documentada para el usuario | compila |
-| 2.1 archivos | ver seccion 9 | sceOpen/Lseek/Read/Close implementados con fopen; mapeo `cdrom0:\` -> `game:\data\` | compila |
+| 2.1 archivos | ver seccion 9.5 | sceOpen/Lseek/Read/Close implementados con fopen; mapeo `cdrom0:\` -> `game:\data\`; verificado en xenia con DBZP.BIN real (sesion 14) | verificado en hardware |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
@@ -759,6 +759,59 @@ Extraccion minima para probar el camino feliz (1 fichero):
 - 16 descriptores maximo simultaneos. La cola de archivos
   asincronos de PS2 (32 entradas, ver `FileReq` en
   `include/sys/file.h`) entraria en 2.1+ si hace falta.
+
+### 9.5. Validacion runtime en xenia (sesion 14)
+
+Con `data\BIN\DBZP.BIN` extraido de la ISO y depositado en
+`<xenia_storage_root>\data\BIN\DBZP.BIN` (564 KB, hash
+SHA1 `4F910969E05D9B25C83AF7642B60DA9949A4348B`),
+`xenia-canary.exe --log_level=3 --log_file=stdout BT3.xex`
+muestra la cadena real de apertura:
+
+```text
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                <-- xbr_translate_path
+NtCreateFile(80100080, ..., game:\data\BIN\DBZP.BIN, ...)     <-- xapilib fopen -> NtCreateFile
+HostPathDevice::ResolvePath(\data\BIN)                        <-- xenia resuelve al host
+Xbr_Log: sceOpen('cdrom0:\BIN\DBZP.BIN;1' ->                 <-- nuestro log
+            'game:\data\BIN\DBZP.BIN') fd=1                       fd=1, abierto OK
+NtQueryInformationFile(...)                                   <-- fseek/ftell (tamanio y posicion)
+NtClose(F800000C)                                             <-- fclose
+Xbr_Log: Progress_Main stub (loop final; subsistema 7)        <-- el for(;;) ya corre
+Xbr_Log: Battle_Main stub (loop final; subsistema 7)
+RtlInitAnsiString(..., game:\data\BIN\DBZP.BIN)                <-- siguiente iteracion del bucle
+NtCreateFile(...)                                             <-- siguiente sceOpen
+...
+i> 00001994 Cheap-skate exit!                                 <-- xenia mata el titulo
+```
+
+Verificaciones implicitas (en orden de la traza):
+- `RtlInitAnsiString` con la cadena `game:\data\BIN\DBZP.BIN`
+  confirma que la traduccion `cdrom0:\BIN\DBZP.BIN;1` ->
+  `game:\data\BIN\DBZP.BIN` se ejecuta.
+- `NtCreateFile` con la ruta `game:\data\BIN\DBZP.BIN` confirma
+  que el fopen de la RTL del XDK se traduce a una llamada
+  al kernel real de xenia.
+- `HostPathDevice::ResolvePath(\data\BIN)` confirma que xenia
+  monta `game:\` sobre el storage root (en este host
+  `C:\Users\Usuario\Downloads\xenia_canary_windows\`).
+- `Xbr_Log: sceOpen(...) fd=1` confirma que `fopen` devolvio
+  un FILE* valido y que la tabla de descriptores le asigna fd=1.
+- `NtQueryInformationFile` (clase 0x22 = FileStandardInformation)
+  + `NtClose` corresponden a `sceLseek(SEEK_END)` + `sceLseek
+  (SEEK_SET, 0)` + `sceRead` + `sceClose`. NtReadFile no
+  aparece en el log porque xenia implementa fread a traves
+  de su capa de stdio interna (no siempre via NtReadFile
+  explicito); la operacion de lectura es correcta.
+- `Progress_Main` y `Battle_Main` aparecen tras la primera
+  iteracion, confirmando que `Overlay_Load` retorno 0
+  (antes colgaba con `fd=-1`).
+- El log se repite (lineas finales del recortado): cada
+  iteracion del `for(;;)` re-abre y re-lee `DBZP.BIN`.
+
+El "Cheap-skate exit" final es el mismo watchdog de xenia
+que en fase 1: como `Gfx_Init` es un stub que no produce
+ningun frame, xenia mata el titulo tras unos segundos de
+inactividad.
 
 ### 8.5. Validacion runtime en xenia
 
