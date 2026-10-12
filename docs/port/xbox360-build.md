@@ -158,6 +158,7 @@ Estado: toolchain validado. Pendiente de la subtarea 1.2: crear el proyecto
 | 1.3 stubs | ver seccion 6 | XEX con los stubs `sce*` enlazados, 0 errores | compila |
 | 1.4 main.c + bootstrap | ver seccion 7 | `.xex` con `main()` de `src/main.c` enlazado y todos los stubs de `Game_Main` hasta `Gfx_Init()` | compila |
 | 1.5 verificacion final | ver seccion 8 | XEX compila + 12/12 trazas en binario; ejecucion real (xbWatson/xenia/RGH) documentada para el usuario | compila |
+| 2.1 archivos | ver seccion 9 | sceOpen/Lseek/Read/Close implementados con fopen; mapeo `cdrom0:\` -> `game:\data\` | compila |
 
 Los comandos exactos de las subtareas 1.3 a 1.5 se anadiran aqui cuando se
 ejecuten, con la salida real. Hasta entonces no se ejecuta ningun comando
@@ -654,6 +655,110 @@ Xbr_Log: McCard_Init stub (subsistema 5 memory card)
 poder cargar el overlay DBZP.BIN, que en Xbox 360 vendra del
 sistema de archivos real; los stubs de fase 1 solo necesitan
 demostrar que la cadena hasta `Gfx_Init` se ejecuta.)
+
+---
+
+## 9. Archivos — sceOpen/Lseek/Read/Close (subtarea 2.1)
+
+Archivos tocados:
+
+- `port/src/xbox360/xbr_file.c` (nuevo) — implementacion real de
+  `sceOpen`, `sceLseek`, `sceRead`, `sceClose` sobre `fopen`/
+  `fread`/`fseek`/`fclose` de la RTL del XDK. Tabla de 16
+  descriptores abiertos simultaneamente (estilo PS2: 0 = invalido,
+  fd = indice + 1).
+- `port/src/xbox360/xbr_stubs_sce.c` (modificado) — quitados los
+  4 stubs de `sceOpen/Lseek/Read/Close`. Quedan los stubs de
+  `sceCd*`, `sceSif*`, `sceFsReset` y libkernl (se iran
+  reasignando a backends reales en 2.1+ y fases 3-6).
+- `port/build/xbox360/BT3.xbox360.vcxproj` (modificado) — aniade
+  `xbr_file.c` al `<ClCompile>`.
+
+### 9.1. Mapeo de paths PS2 -> Xbox 360
+
+El juego almacena paths estilo PS2 (`cdrom0:\BIN\DBZP.BIN;1`). El
+port los traduce a paths Xbox 360 sobre el dispositivo `game:`:
+
+| PS2 | Xbox 360 |
+| :-- | :-- |
+| `cdrom0:\BIN\DBZP.BIN;1` | `game:\data\BIN\DBZP.BIN` |
+| `cdrom0:\DATA\pzs3usN.afs` | `game:\data\DATA\pzs3usN.afs` |
+| `cdrom0:\SOUND\xxx.ads` | `game:\data\SOUND\xxx.ads` |
+
+Reglas en `xbr_translate_path` (en `xbr_file.c`):
+- Prefijo `cdrom0:\` o `cdrom0:/` -> prepending `game:\data\`.
+- Sufijo `;<N>` (version PS2) -> descartado (la RTL no lo entiende
+  y los datos vienen sin el).
+- Cualquier otro path -> se devuelve tal cual.
+
+### 9.2. Politica de instalacion de los datos del juego
+
+Los datos del juego se extraen de la ISO en la raiz del repo
+(`Dragon Ball Z - Budokai Tenkaichi 3.iso`, ignorado por
+`.gitignore` `*.iso` linea 1) y se depositan en `game:\data\`
+segun la plataforma destino:
+
+- **xenia-canary**: el storage root de la sesion 14 fue
+  `C:\Users\Usuario\Downloads\xenia_canary_windows\`. El
+  dispositivo `game:` se monta sobre un subdirectorio (la
+  convencion exacta depende de la version; en builds recientes
+  es `<storage_root>\game\` o via flag `--game_path=...`). El
+  usuario debe crear la estructura `game\data\BIN\`, copiar
+  `DBZP.BIN` extraido de la ISO y arrancar `xenia-canary.exe
+  --log_level=3 --log_file=stdout BT3.xex`. El log deberia
+  mostrar `Xbr_Log: sceOpen('cdrom0:\\BIN\\DBZP.BIN;1' ->
+  'game:\\data\\BIN\\DBZP.BIN') fd=1` y el bucle de
+  `Overlay_Load` saldria del do/while (en lugar del hang
+  actual con `-1`).
+- **xbWatson** (devkit): `xbcp BT3.xex xe:\BT3.xex` y luego
+  crear `xe:\data\BIN\DBZP.BIN` con los bytes extraidos.
+- **RGH**: Aurora/FSD con FTP; depositar en `game:\data\BIN\`.
+
+Extraccion minima para probar el camino feliz (1 fichero):
+
+```bat
+:: Comprobar que el path existe en la ISO
+"C:\Program Files\7-Zip\7z.exe" l "Dragon Ball Z - Budokai Tenkaichi 3.iso" BIN\DBZP.BIN
+:: Extraerlo
+"C:\Program Files\7-Zip\7z.exe" e -y -o"<destino>\BIN" "...iso" BIN\DBZP.BIN
+```
+
+### 9.3. Comportamiento esperado de Overlay_Load
+
+- **Sin datos en `game:\data\`** (estado actual, fase 1.5):
+  `sceOpen` devuelve -1, `Xbr_Log: sceOpen('cdrom0:\\BIN\\
+  DBZP.BIN;1' -> 'game:\\data\\BIN\\DBZP.BIN') no existe` (una
+  sola vez por el flag estatico), `Overlay_Load` se cuelga en
+  el do/while, xenia acaba con "Cheap-skate exit". Es lo
+  observado en sesion 14.
+- **Con `BIN\DBZP.BIN` en `game:\data\`**: `sceOpen` devuelve
+  fd=1, `Xbr_Log: sceOpen('cdrom0:\\BIN\\DBZP.BIN;1' ->
+  'game:\\data\\BIN\\DBZP.BIN') fd=1` (una vez), `sceLseek`
+  devuelve el tamano (563996 en la ISO), `sceRead(fd=1,
+  MainMenu_StartBallLoops, size)` copia el menu overlay,
+  `sceClose(fd=1)` cierra, `Overlay_Load` retorna 0, y el
+  bucle de `Game_Main` continua con `Progress_Main(0)` y
+  `Battle_Main(0)`. Nuestro stub de `Progress_Main` loguea
+  y retorna, lo mismo `Battle_Main`, y vuelta a empezar.
+  La verificacion del contenido del overlay (paridad con PC)
+  ya entra en fase 7 (verificacion funcional) y requiere el
+  render y el logica de batalla, no solo el filesystem.
+
+### 9.4. Restricciones de 2.1
+
+- Solo lectura (`SCE_RDONLY`). Escritura (`SCE_WRONLY`,
+  `SCE_CREAT`, `SCE_TRUNC`) entra en fases 5/8 (saves,
+  overlays regrabables).
+- Sin soporte de AFS: `File_LoadSyncEx`, `File_OpenById` y
+  la cola asincrona de `FileReq` siguen siendo stubs de
+  `xbr_stubs_game.c`. Eso es 2.1+ (o 2.x extendido), no 2.1.
+- Sin conversion endian: `sceRead` entrega los bytes crudos
+  del fichero. La conversion `little-endian -> big-endian`
+  es la subtarea 2.2 (helpers `Xbr_LoadLE16/32/64` en
+  `port/include/xbox360/`).
+- 16 descriptores maximo simultaneos. La cola de archivos
+  asincronos de PS2 (32 entradas, ver `FileReq` en
+  `include/sys/file.h`) entraria en 2.1+ si hace falta.
 
 ### 8.5. Validacion runtime en xenia
 

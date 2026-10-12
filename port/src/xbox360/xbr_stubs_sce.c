@@ -137,39 +137,11 @@ int sceSifLoadModule(char *name, int argLen, char *args) {
 }
 
 /* --------------------------------------------------------------------------
- * sceOpen/Lseek/Read/Close: abiertos por src/main.c::Overlay_Load
+ * sceOpen/Lseek/Read/Close: implementacion real en port/src/xbox360/xbr_file.c
+ * (subtarea 2.1 de la fase 2). Este archivo conserva solo los stubs de SCE
+ * que la 2.1 no ha tocado: sceCd* (deteccion del disco), sceSif* (bus EE/IOP),
+ * sceFsReset (reset del filesystem IOP) y la libkernl (GetThreadId, etc.).
  * -------------------------------------------------------------------------- */
-
-/* XBOX360: no hay un equivalente directo de sceOpen. En fase 2 el subsistema
- * 1 (archivos/memoria) abrira ficheros del sistema de archivos de Xbox 360
- * (game:\ o hard disk) segun la politica de instalacion que se decida. Por
- * ahora devolvemos -1 para que el bucle do/while de Overlay_Load no se
- * cuelgue en caso de que la fase 1.4 llegue a invocarlo (no deberia: el
- * bucle esta despues de Gfx_Init()). */
-int sceOpen(char *name, int flags) {
-    (void)name;
-    (void)flags;
-    return -1;
-}
-
-int sceLseek(int fd, int offset, int whence) {
-    (void)fd;
-    (void)offset;
-    (void)whence;
-    return 0;
-}
-
-int sceRead(int fd, void *buf, int size) {
-    (void)fd;
-    (void)buf;
-    (void)size;
-    return 0;
-}
-
-int sceClose(int fd) {
-    (void)fd;
-    return 0;
-}
 
 /* --------------------------------------------------------------------------
  * sceCd*: deteccion del disco y busqueda de ficheros
